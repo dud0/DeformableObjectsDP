@@ -32,13 +32,25 @@ int4 calcGridPos(uint i, uint4 gridSizeShift, uint4 gridSizeMask)
     return gridPos;
 }
 
+float calcFieldValue(__global int4 *points, int4 gridPos, uint count)
+{
+	int i;
+	float sum=0;
+	for (i=0;i<count;i++)
+	{
+		sum+=1.0f/(pow((float)(points[i].x-gridPos.x),(float)2)+pow((float)(points[i].y-gridPos.y),(float)2)+pow((float)(points[i].z-gridPos.z),(float)2));
+		
+	}
+	return sum;
+}
+
 // classify voxel based on number of vertices it will generate
 // one thread per voxel
 __kernel
 void
-classifyVoxel(__global uint* voxelVerts, __global uint *voxelOccupied, __read_only image3d_t volume,
+classifyVoxel(__global uint* voxelVerts, __global uint *voxelOccupied, __global int4 *points,
               uint4 gridSize, uint4 gridSizeShift, uint4 gridSizeMask, uint numVoxels,
-              float4 voxelSize, float isoValue,  __read_only image2d_t numVertsTex)
+              float4 voxelSize, float isoValue,  __read_only image2d_t numVertsTex, uint pointCnt)
 {
     uint blockId = get_group_id(0);
     uint i = get_global_id(0);
@@ -47,14 +59,14 @@ classifyVoxel(__global uint* voxelVerts, __global uint *voxelOccupied, __read_on
 
     // read field values at neighbouring grid vertices
     float field[8];
-    field[0] = read_imagef(volume, volumeSampler, gridPos).x;
-    field[1] = read_imagef(volume, volumeSampler, gridPos + (int4)(1, 0, 0 ,0)).x;
-    field[2] = read_imagef(volume, volumeSampler, gridPos + (int4)(1, 1, 0,0)).x;
-    field[3] = read_imagef(volume, volumeSampler, gridPos + (int4)(0, 1, 0,0)).x;
-    field[4] = read_imagef(volume, volumeSampler, gridPos + (int4)(0, 0, 1,0)).x;
-    field[5] = read_imagef(volume, volumeSampler, gridPos + (int4)(1, 0, 1,0)).x;
-    field[6] = read_imagef(volume, volumeSampler, gridPos + (int4)(1, 1, 1,0)).x;
-    field[7] = read_imagef(volume, volumeSampler, gridPos + (int4)(0, 1, 1,0)).x;
+    field[0] = calcFieldValue(points, gridPos, pointCnt);
+    field[1] = calcFieldValue(points, gridPos + (int4)(1, 0, 0 ,0), pointCnt);
+    field[2] = calcFieldValue(points, gridPos + (int4)(1, 1, 0 ,0), pointCnt);
+    field[3] = calcFieldValue(points, gridPos + (int4)(0, 1, 0 ,0), pointCnt);
+    field[4] = calcFieldValue(points, gridPos + (int4)(0, 0, 1 ,0), pointCnt);
+    field[5] = calcFieldValue(points, gridPos + (int4)(1, 0, 1 ,0), pointCnt);
+    field[6] = calcFieldValue(points, gridPos + (int4)(1, 1, 1 ,0), pointCnt);
+    field[7] = calcFieldValue(points, gridPos + (int4)(0, 1, 1 ,0), pointCnt);
 
     // calculate flag indicating if each vertex is inside or outside isosurface
     int cubeindex;
@@ -124,10 +136,10 @@ float4 calcNormal(float4 v0, float4 v1, float4 v2)
 __kernel
 void
 generateTriangles2(__global float4 *pos, __global float4 *norm, __global uint *compactedVoxelArray, __global uint *numVertsScanned, 
-                   __read_only image3d_t volume,
+                   __global int4 *points,
                    uint4 gridSize, uint4 gridSizeShift, uint4 gridSizeMask,
                    float4 voxelSize, float isoValue, uint activeVoxels, uint maxVerts, 
-                   __read_only image2d_t numVertsTex, __read_only image2d_t triTex)
+                   __read_only image2d_t numVertsTex, __read_only image2d_t triTex, uint pointCnt)
 {
     uint i = get_global_id(0);
     uint tid = get_local_id(0);
@@ -159,14 +171,14 @@ generateTriangles2(__global float4 *pos, __global float4 *norm, __global uint *c
     v[7] = p + (float4)(0, voxelSize.y, voxelSize.z,0);
 
     float field[8];
-    field[0] = read_imagef(volume, volumeSampler, gridPos).x;
-    field[1] = read_imagef(volume, volumeSampler, gridPos + (int4)(1, 0, 0 ,0)).x;
-    field[2] = read_imagef(volume, volumeSampler, gridPos + (int4)(1, 1, 0,0)).x;
-    field[3] = read_imagef(volume, volumeSampler, gridPos + (int4)(0, 1, 0,0)).x;
-    field[4] = read_imagef(volume, volumeSampler, gridPos + (int4)(0, 0, 1,0)).x;
-    field[5] = read_imagef(volume, volumeSampler, gridPos + (int4)(1, 0, 1,0)).x;
-    field[6] = read_imagef(volume, volumeSampler, gridPos + (int4)(1, 1, 1,0)).x;
-    field[7] = read_imagef(volume, volumeSampler, gridPos + (int4)(0, 1, 1,0)).x;
+    field[0] = calcFieldValue(points, gridPos, pointCnt);
+    field[1] = calcFieldValue(points, gridPos + (int4)(1, 0, 0 ,0), pointCnt);
+    field[2] = calcFieldValue(points, gridPos + (int4)(1, 1, 0 ,0), pointCnt);
+    field[3] = calcFieldValue(points, gridPos + (int4)(0, 1, 0 ,0), pointCnt);
+    field[4] = calcFieldValue(points, gridPos + (int4)(0, 0, 1 ,0), pointCnt);
+    field[5] = calcFieldValue(points, gridPos + (int4)(1, 0, 1 ,0), pointCnt);
+    field[6] = calcFieldValue(points, gridPos + (int4)(1, 1, 1 ,0), pointCnt);
+    field[7] = calcFieldValue(points, gridPos + (int4)(0, 1, 1 ,0), pointCnt);
 
     // recalculate flag
     int cubeindex;

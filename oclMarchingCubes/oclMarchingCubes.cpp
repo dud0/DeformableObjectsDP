@@ -162,7 +162,9 @@ GLint  gl_Shader;
 cl_mem d_pos = 0;
 cl_mem d_normal = 0;
 
-cl_mem d_volume = 0;
+cl_mem d_points = 0;
+cl_uint d_pointCnt = 0;
+
 cl_mem d_voxelVerts = 0;
 cl_mem d_voxelVertsScan = 0;
 cl_mem d_voxelOccupied = 0;
@@ -259,7 +261,7 @@ openclScan(cl_mem d_voxelOccupiedScan, cl_mem d_voxelOccupied, int numVoxels) {
 }
 
 void
-launch_classifyVoxel( dim3 grid, dim3 threads, cl_mem voxelVerts, cl_mem voxelOccupied, cl_mem volume,
+launch_classifyVoxel( dim3 grid, dim3 threads, cl_mem voxelVerts, cl_mem voxelOccupied, cl_mem points, cl_uint pointCnt,
 					  cl_uint gridSize[4], cl_uint gridSizeShift[4], cl_uint gridSizeMask[4], uint numVoxels,
 					  cl_float voxelSize[4], float isoValue)
 {
@@ -267,7 +269,7 @@ launch_classifyVoxel( dim3 grid, dim3 threads, cl_mem voxelVerts, cl_mem voxelOc
     oclCheckErrorEX(ciErrNum, CL_SUCCESS, pCleanup);
     ciErrNum = clSetKernelArg(classifyVoxelKernel, 1, sizeof(cl_mem), &voxelOccupied);
     oclCheckErrorEX(ciErrNum, CL_SUCCESS, pCleanup);
-    ciErrNum = clSetKernelArg(classifyVoxelKernel, 2, sizeof(cl_mem), &volume);
+    ciErrNum = clSetKernelArg(classifyVoxelKernel, 2, sizeof(cl_mem), &points);
     oclCheckErrorEX(ciErrNum, CL_SUCCESS, pCleanup);
     ciErrNum = clSetKernelArg(classifyVoxelKernel, 3, 4 * sizeof(cl_uint), gridSize);
     oclCheckErrorEX(ciErrNum, CL_SUCCESS, pCleanup);
@@ -282,6 +284,8 @@ launch_classifyVoxel( dim3 grid, dim3 threads, cl_mem voxelVerts, cl_mem voxelOc
     ciErrNum = clSetKernelArg(classifyVoxelKernel, 8, sizeof(float), &isoValue);
     oclCheckErrorEX(ciErrNum, CL_SUCCESS, pCleanup);
     ciErrNum = clSetKernelArg(classifyVoxelKernel, 9, sizeof(cl_mem), &d_numVertsTable);
+    oclCheckErrorEX(ciErrNum, CL_SUCCESS, pCleanup);
+    ciErrNum = clSetKernelArg(classifyVoxelKernel, 10, sizeof(cl_uint), &pointCnt);
     oclCheckErrorEX(ciErrNum, CL_SUCCESS, pCleanup);
 
     grid.x *= threads.x;
@@ -308,7 +312,7 @@ launch_compactVoxels(dim3 grid, dim3 threads, cl_mem compVoxelArray, cl_mem voxe
 
 void
 launch_generateTriangles2(dim3 grid, dim3 threads,
-                          cl_mem pos, cl_mem norm, cl_mem compactedVoxelArray, cl_mem numVertsScanned, cl_mem volume,
+                          cl_mem pos, cl_mem norm, cl_mem compactedVoxelArray, cl_mem numVertsScanned, cl_mem points, cl_uint pointCnt,
                           cl_uint gridSize[4], cl_uint gridSizeShift[4], cl_uint gridSizeMask[4],
                           cl_float voxelSize[4], float isoValue, uint activeVoxels, uint maxVerts)
 {
@@ -320,7 +324,7 @@ launch_generateTriangles2(dim3 grid, dim3 threads,
     oclCheckErrorEX(ciErrNum, CL_SUCCESS, pCleanup);
     ciErrNum = clSetKernelArg(generateTriangles2Kernel, 3, sizeof(cl_mem), &numVertsScanned);
     oclCheckErrorEX(ciErrNum, CL_SUCCESS, pCleanup);
-    ciErrNum = clSetKernelArg(generateTriangles2Kernel, 4, sizeof(cl_mem), &volume);
+    ciErrNum = clSetKernelArg(generateTriangles2Kernel, 4, sizeof(cl_mem), &points);
     oclCheckErrorEX(ciErrNum, CL_SUCCESS,  pCleanup); 
     ciErrNum = clSetKernelArg(generateTriangles2Kernel, 5, 4 * sizeof(cl_uint), gridSize);
     oclCheckErrorEX(ciErrNum, CL_SUCCESS, pCleanup);
@@ -340,6 +344,8 @@ launch_generateTriangles2(dim3 grid, dim3 threads,
     ciErrNum = clSetKernelArg(generateTriangles2Kernel, 12, sizeof(cl_mem), &d_numVertsTable);
     oclCheckErrorEX(ciErrNum, CL_SUCCESS, pCleanup);
     ciErrNum = clSetKernelArg(generateTriangles2Kernel, 13, sizeof(cl_mem), &d_triTable);
+    oclCheckErrorEX(ciErrNum, CL_SUCCESS, pCleanup);
+    ciErrNum = clSetKernelArg(generateTriangles2Kernel, 14, sizeof(cl_uint), &pointCnt);
     oclCheckErrorEX(ciErrNum, CL_SUCCESS, pCleanup);
 
     grid.x *= threads.x;
@@ -606,18 +612,23 @@ initMC(int argc, char** argv)
         exit(EXIT_FAILURE);
     }
 
-    int size = gridSize[0]*gridSize[1]*gridSize[2]*sizeof(uchar);
-    uchar *volume = loadRawFile(path, size);
-    cl_image_format volumeFormat;
-    volumeFormat.image_channel_order = CL_R;
-    volumeFormat.image_channel_data_type = CL_UNORM_INT8;
+    //int size = gridSize[0]*gridSize[1]*gridSize[2]*sizeof(uchar);
+    //uchar *volume = loadRawFile(path, size);
+    //cl_image_format volumeFormat;
+    //volumeFormat.image_channel_order = CL_R;
+    //volumeFormat.image_channel_data_type = CL_UNORM_INT8;
 
-    d_volume = clCreateImage3D(cxGPUContext, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR, &volumeFormat, 
+
+
+    /*d_volume = clCreateImage3D(cxGPUContext, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR, &volumeFormat,
                                     gridSize[0], gridSize[1], gridSize[2],
                                     gridSize[0], gridSize[0] * gridSize[1],
-                                    volume, &ciErrNum);
-    oclCheckErrorEX(ciErrNum, CL_SUCCESS, pCleanup);
-    free(volume);
+                                    volume, &ciErrNum);*/
+    //oclCheckErrorEX(ciErrNum, CL_SUCCESS, pCleanup);
+    //free(volume);
+
+    d_pointCnt=4;
+    cl_int points[4][4] = {{10,10,10,0},{15,10,10,0},{10,15,10,0},{10,10,15,0}};
 
     // create VBOs
     if( !bQATest) {
@@ -640,6 +651,9 @@ initMC(int argc, char** argv)
     oclCheckErrorEX(ciErrNum, CL_SUCCESS, pCleanup);
     d_compVoxelArray = clCreateBuffer(cxGPUContext, CL_MEM_READ_WRITE, memSize, 0, &ciErrNum);
     oclCheckErrorEX(ciErrNum, CL_SUCCESS, pCleanup);
+    d_points = clCreateBuffer(cxGPUContext, CL_MEM_READ_WRITE, sizeof(cl_int)*16, &points, &ciErrNum);
+    clEnqueueWriteBuffer(cqCommandQueue , d_points, CL_TRUE, 0, sizeof(cl_int)*16, &points, NULL, NULL,NULL);
+    oclCheckErrorEX(ciErrNum, CL_SUCCESS, pCleanup);
 }
 
 void Cleanup(int iExitCode)
@@ -655,8 +669,7 @@ void Cleanup(int iExitCode)
     if( d_voxelOccupied) clReleaseMemObject(d_voxelOccupied);
     if( d_voxelOccupiedScan) clReleaseMemObject(d_voxelOccupiedScan);
     if( d_compVoxelArray) clReleaseMemObject(d_compVoxelArray);
-
-    if( d_volume) clReleaseMemObject(d_volume);
+    if( d_points) clReleaseMemObject(d_points);
 
     closeScan();
     
@@ -751,7 +764,7 @@ computeIsosurface()
 
     // calculate number of vertices need per voxel
     launch_classifyVoxel(grid, threads, 
-						d_voxelVerts, d_voxelOccupied, d_volume, 
+						d_voxelVerts, d_voxelOccupied, d_points, d_pointCnt,
 						gridSize, gridSizeShift, gridSizeMask, 
                          numVoxels, voxelSize, isoValue);
 
@@ -815,7 +828,7 @@ computeIsosurface()
     }
     launch_generateTriangles2(grid2, NTHREADS, d_pos, d_normal,
                                             d_compVoxelArray, 
-                                            d_voxelVertsScan, d_volume, 
+                                            d_voxelVertsScan, d_points, d_pointCnt,
                                             gridSize, gridSizeShift, gridSizeMask, 
                                             voxelSize, isoValue, activeVoxels, 
                               maxVerts);
