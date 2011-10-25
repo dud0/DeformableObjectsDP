@@ -33,6 +33,7 @@ int main(int argc, char *argv[])
   applet->rendering()->as<Rendering>()->renderer()->setFramebuffer( qt4_window->framebuffer() );
   /* black background */
   applet->rendering()->as<Rendering>()->camera()->viewport()->setClearColor( black );
+
   /* define the camera position and orientation */
   vec3 eye    = vec3(0,10,35); // camera position
   vec3 center = vec3(0,0,0);   // point the camera is looking at
