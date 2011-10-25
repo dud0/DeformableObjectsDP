@@ -151,7 +151,7 @@ uint maxVerts     = 0;
 uint activeVoxels = 0;
 uint totalVerts   = 0;
 
-float isoValue		= 0.2f;
+float isoValue		= 17.5f;
 float dIsoValue		= 0.005f;
 
 // device data
@@ -163,7 +163,7 @@ cl_mem d_pos = 0;
 cl_mem d_normal = 0;
 
 cl_mem d_points = 0;
-cl_uint d_pointCnt = 0;
+cl_uint pointCnt = 0;
 
 cl_mem d_voxelVerts = 0;
 cl_mem d_voxelVertsScan = 0;
@@ -627,8 +627,20 @@ initMC(int argc, char** argv)
     //oclCheckErrorEX(ciErrNum, CL_SUCCESS, pCleanup);
     //free(volume);
 
-    d_pointCnt=4;
-    cl_int points[4][4] = {{10,10,10,0},{15,10,10,0},{10,15,10,0},{10,10,15,0}};
+    pointCnt=729;
+    cl_int points[729][4];
+
+    int i,j,k, pointIndex=0;
+
+    for(i=12;i<21;i+=1) {
+    	for(j=12;j<21;j+=1) {
+    		for(k=12;k<21;k+=1) {
+    		    points[pointIndex][0]=i;
+    		    points[pointIndex][1]=j;
+    		    points[pointIndex++][2]=k;
+			}
+    	}
+    }
 
     // create VBOs
     if( !bQATest) {
@@ -651,8 +663,8 @@ initMC(int argc, char** argv)
     oclCheckErrorEX(ciErrNum, CL_SUCCESS, pCleanup);
     d_compVoxelArray = clCreateBuffer(cxGPUContext, CL_MEM_READ_WRITE, memSize, 0, &ciErrNum);
     oclCheckErrorEX(ciErrNum, CL_SUCCESS, pCleanup);
-    d_points = clCreateBuffer(cxGPUContext, CL_MEM_READ_WRITE, sizeof(cl_int)*16, &points, &ciErrNum);
-    clEnqueueWriteBuffer(cqCommandQueue , d_points, CL_TRUE, 0, sizeof(cl_int)*16, &points, NULL, NULL,NULL);
+    d_points = clCreateBuffer(cxGPUContext, CL_MEM_READ_WRITE, sizeof(cl_int)*4*pointCnt, &points, &ciErrNum);
+    clEnqueueWriteBuffer(cqCommandQueue , d_points, CL_TRUE, 0, sizeof(cl_int)*4*pointCnt, &points, NULL, NULL,NULL);
     oclCheckErrorEX(ciErrNum, CL_SUCCESS, pCleanup);
 }
 
@@ -764,7 +776,7 @@ computeIsosurface()
 
     // calculate number of vertices need per voxel
     launch_classifyVoxel(grid, threads, 
-						d_voxelVerts, d_voxelOccupied, d_points, d_pointCnt,
+						d_voxelVerts, d_voxelOccupied, d_points, pointCnt,
 						gridSize, gridSizeShift, gridSizeMask, 
                          numVoxels, voxelSize, isoValue);
 
@@ -828,7 +840,7 @@ computeIsosurface()
     }
     launch_generateTriangles2(grid2, NTHREADS, d_pos, d_normal,
                                             d_compVoxelArray, 
-                                            d_voxelVertsScan, d_points, d_pointCnt,
+                                            d_voxelVertsScan, d_points, pointCnt,
                                             gridSize, gridSizeShift, gridSizeMask, 
                                             voxelSize, isoValue, activeVoxels, 
                               maxVerts);
