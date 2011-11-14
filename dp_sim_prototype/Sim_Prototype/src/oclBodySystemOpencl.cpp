@@ -59,20 +59,6 @@ BodySystemOpenCL::BodySystemOpenCL(int numBodies, int numEdges, cl_device_id dev
 
     _initialize(numBodies, numEdges);
 
-    // create non multithreaded program and kernel
-    shrLog("\nCreateProgramAndKernel _noMT... ");  
-    if (CreateProgramAndKernel(ctx, &dev, "integrateBodies_noMT", &noMT_kernel, m_bDouble)) 
-    {
-        exit(shrLogEx(LOGBOTH | CLOSELOG, -1, "CreateProgramAndKernel _noMT ", STDERROR)); 
-    }
-
-    // create multithreaded program and kernel
-    shrLog("\nCreateProgramAndKernel _MT... ");
-    if (CreateProgramAndKernel(ctx, &dev, "integrateBodies_MT", &MT_kernel, m_bDouble)) 
-    {
-        exit(shrLogEx(LOGBOTH | CLOSELOG, -1, "CreateProgramAndKernel _MT ", STDERROR)); 
-    }
-
     // **************************************************************************************
 
     shrLog("\nCreateProgramAndKernel EXTERN FORCES... ");
@@ -175,9 +161,6 @@ void BodySystemOpenCL::_finalize()
     delete [] m_hF;
     delete [] m_hEdge;
 
-	clReleaseKernel(MT_kernel);
-	clReleaseKernel(noMT_kernel);
-
 	clReleaseKernel(extFor_kernel);
 	clReleaseKernel(sprFor_kernel);
 	clReleaseKernel(intBod_kernel);
@@ -213,16 +196,6 @@ void BodySystemOpenCL::update(float deltaTime)
 	bool cont = true;
 
     oclCheckError(m_bInitialized, shrTRUE);
-    
-    /*IntegrateNbodySystem(cqCommandQueue,
-                         MT_kernel, noMT_kernel,
-                         m_dPos[m_currentWrite], m_dVel[m_currentWrite], m_dF[m_currentWrite], m_dEdge[m_currentWrite], m_dForces[m_currentWrite],
-                         m_dPos[m_currentRead], m_dVel[m_currentRead], m_dF[m_currentRead], m_dEdge[m_currentRead], m_dForces[m_currentRead],
-                         m_pboCL[m_currentRead], m_pboCL[m_currentWrite],
-                         deltaTime, m_damping, m_softeningSq,
-                         m_numBodies, m_numEdges, m_p, m_q,
-                         (m_bUsePBO ? 1 : 0),
-						 m_bDouble); */
 
     computeExternalForces(cqCommandQueue,
         		extFor_kernel,
@@ -241,65 +214,6 @@ void BodySystemOpenCL::update(float deltaTime)
         		m_numEdges, m_p, m_q,
         		1);
 
-    // compute springs forces without kernel
-    /*******************************************************************************************/
-   /* float *Vel, *Forces, *Pos, *Edges;
-    Vel = getArray(BODYSYSTEM_VELOCITY);
-    Forces = getArray(BODYSYSTEM_FORCES);
-    Pos = getArray(BODYSYSTEM_POSITION);
-    Edges = getArray(BODYSYSTEM_EDGE);
-
-    shrLog("******************************************************************\n");
-
-    //shrLog("Force to point 0 before springs: %f - %f - %f\n", Forces[0], Forces[1], Forces[2]);
-
-    //if (Edges[0] == Edges [1])
-    //	cont = false;
-
-    //if (cont) {
-
-    	shrLog("s INTEGRATE\n");
-
-    	int i = 0, p1, p2;
-    	float vectLength, dx, dy, dz, fx, fy, fz;
-    	for (i = 0; i < m_numEdges; i++) {
-    		shrLog("-> %d. edge, ",i);
-    		p1 = Edges[i*4];
-    		p2 = Edges[i*4+1];
-    		shrLog("p1: %d, p2: %d; ", p1, p2);
-    		dx = Pos[p1*4] - Pos[p2*4];
-    		dy = Pos[p1*4+1] - Pos[p2*4+1];
-    		dz = Pos[p1*4+2] - Pos[p2*4+2];
-    		vectLength = sqrt(dx*dx + dy*dy + dz*dz);
-    		fx = 1*(Edges[i*4+2] - vectLength);
-    		//fx += 0.1 * (Vel[p1*4] - Vel[p2*4]) * dx / vectLength;
-    		fx *=  dx / vectLength;
-    		fy = 1*(Edges[i*4+2] - vectLength);
-    		//fy += 0.1 * (Vel[p1*4+1] - Vel[p2*4+1]) * dy / vectLength;
-    		fy *=  dy / vectLength;
-    		fz = 1*(Edges[i*4+2] - vectLength);
-    		//fz += 0.1 * (Vel[p1*4+2] - Vel[p2*4+2]) * dz / vectLength;
-    		fz *=  dz / vectLength;
-
-    		Forces[p1*4] += fx;
-    		Forces[p1*4+1] += fy;
-    		Forces[p1*4+2] += fz;
-
-    		shrLog("FP1: %f-%f-%f; ", Forces[p1*4], Forces[p1*4+1], Forces[p1*4+2]);
-
-    		Forces[p2*4] -= fx;
-    		Forces[p2*4-1] -= fy;
-    		Forces[p2*4-2] -= fz;
-    		shrLog("FP2: %f-%f-%f; ", Forces[p2*4], Forces[p2*4+1], Forces[p2*4+2]);
-    		shrLog("\n");
-    	}
-
-    	//shrLog("Force to point 0 after springs: %f - %f - %f\n", Forces[0], Forces[1], Forces[2]);
-    	shrLog("******************************************************************\n");
-
-    	setArray(BODYSYSTEM_FORCES, Forces);
-    	/*******************************************************************************************/
-
     	integrateSystem(cqCommandQueue,
     			intBod_kernel,
     			m_dPos[m_currentWrite],
@@ -312,32 +226,6 @@ void BodySystemOpenCL::update(float deltaTime)
     			deltaTime, m_damping,
     			m_numBodies, m_p, m_q,
     			1);
-
-   // }
-    //else {
-    //	shrLog("bez INTEGRATE\n");
-    //}
-
-    //float* V;
-    //V = getArray(BODYSYSTEM_VELOCITY);
-    //shrLog("x: %f - y: %f - z: %f\n", V[0], V[1], V[2]);
-    //shrLog("x: %f - y: %f - z: %f\n", V[4], V[5], V[6]);
-    //shrLog("x: %f - y: %f - z: %f\n", V[8], V[9], V[10]);
-    //shrLog("x: %f - y: %f - z: %f\n", V[12], V[13], V[14]);
-    //shrLog("x: %f - y: %f - z: %f\n\n", V[16], V[17], V[18]);
-
-    //float* E;
-    //E = getArray(BODYSYSTEM_EDGE);
-    //for(int i = 0; i < m_numEdges; i++) {
-    //	shrLog("%d:       %d s %d ---> l0: %f\n", i, (int)E[i*3+0], (int)E[i*3+1], E[i*3+2]);
-    //}
-    //shrLog("0:       %d s %d ---> l0: %f\n",  (int)E[0*3+0], (int)E[0*3+1], E[0*3+2]);
-
-    //float* F;
-    //F = getArray(BODYSYSTEM_FORCES);
-    //shrLog("x: %f - y: %f - z:%f\n", F[0], F[1], F[2]);
-    //shrLog("x: %f - y: %f - z:%f\n\n", F[4], F[5], F[6]);
-
 
     std::swap(m_currentRead, m_currentWrite);
 }
