@@ -75,6 +75,11 @@
 #  include <windows.h>
 #endif
 
+//VL
+
+//#include <vlCore/VisualizationLibrary.hpp>
+//#include <vlQt4/Qt4Widget.hpp>
+
 // includes
 #include <stdlib.h>
 #include <stdio.h>
