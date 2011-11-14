@@ -1,6 +1,6 @@
 #include <vlCore/VisualizationLibrary.hpp>
 #include <vlQt4/Qt4Widget.hpp>
-#include "TetraApplet.hpp"
+#include "MCApplet.hpp"
 
 using namespace vl;
 using namespace vlQt4;
@@ -23,7 +23,7 @@ int main(int argc, char *argv[])
   //format.setMultisample(true);
 
   /* create the applet to be run */
-  ref<Applet> applet = new TetraApplet;
+  ref<Applet> applet = new MCApplet;
   applet->initialize();
   /* create a native Qt4 window */
   ref<vlQt4::Qt4Widget> qt4_window = new vlQt4::Qt4Widget;
@@ -35,7 +35,7 @@ int main(int argc, char *argv[])
   applet->rendering()->as<Rendering>()->camera()->viewport()->setClearColor( black );
 
   /* define the camera position and orientation */
-  vec3 eye    = vec3(0,10,35); // camera position
+  vec3 eye    = vec3(0,4,4); // camera position
   vec3 center = vec3(0,0,0);   // point the camera is looking at
   vec3 up     = vec3(0,1,0);   // up direction
   mat4 view_mat = mat4::getLookAt(eye, center, up);
@@ -45,7 +45,7 @@ int main(int argc, char *argv[])
   int y = 10;
   int width = 512;
   int height= 512;
-  qt4_window->initQt4Widget( "Visualization Library on Qt4 - Rotating Cube", format, NULL, x, y, width, height );
+  qt4_window->initQt4Widget( "Visualization Prototype", format, NULL, x, y, width, height );
   /* show the window */
   qt4_window->show();
 
