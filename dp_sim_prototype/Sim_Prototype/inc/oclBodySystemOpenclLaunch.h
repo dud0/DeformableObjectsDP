@@ -40,6 +40,35 @@ void IntegrateNbodySystem(cl_command_queue cqCommandQueue,
                           float deltaTime, float damping, float softSq,
                           int numBodies, int numEdges, int p, int q,
                           int bUsePBO, bool bDouble);
+
+void computeExternalForces(cl_command_queue cqCommandQueue,
+    		cl_kernel k,
+    		cl_mem newForces,
+    		cl_mem oldFc,
+    		cl_mem oldVelocities,
+    		int numBodies, int p, int q,
+    		bool bDouble);
+void computeSpringsForces(cl_command_queue cqCommandQueue,
+   		cl_kernel k,
+   		cl_mem newForces,
+   		cl_mem newEdges,
+   		cl_mem oldPositions,
+   		cl_mem oldEdges,
+   		int numEdges, int p, int q,
+   		bool bDouble);
+void integrateSystem(cl_command_queue cqCommandQueue,
+    		cl_kernel k,
+    		cl_mem newPositions,
+    		cl_mem newVelocities,
+    		cl_mem newEdges,
+    		cl_mem oldPositions,
+    		cl_mem oldVelocities,
+    		cl_mem oldEdges,
+    		cl_mem oldForces,
+    		float deltaTime, float damping,
+    		int numBodies, int p, int q,
+    		bool bDouble);
+
 void CopyArrayFromDevice(int __size, cl_command_queue cmdq, float *host, cl_mem device, cl_mem pboCL, int numBodies, bool bDouble);
 void CopyArrayToDevice(int __size, cl_command_queue cmdq, cl_mem device, const float *host, int numBodies, bool bDouble);
 cl_mem RegisterGLBufferObject(cl_context ctx, unsigned int pboGL);

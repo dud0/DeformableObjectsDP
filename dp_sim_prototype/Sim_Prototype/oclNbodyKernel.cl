@@ -283,6 +283,47 @@ REAL3 computeFc(int numBodies, REAL4 Fc) {
 	return k_Fc;
 }
 
+REAL3 computeFp_new(int numBodies, int numEdges, __global REAL3 *edges, __global REAL4* oldForces) {
+
+	REAL3 Fp = ZERO3;
+
+	unsigned int threadIdxx = get_local_id(0);
+    unsigned int threadIdxy = get_local_id(1);
+    unsigned int blockIdxx = get_group_id(0);
+    unsigned int blockIdxy = get_group_id(1);
+    unsigned int gridDimx = get_num_groups(0);
+    unsigned int blockDimx = get_local_size(0);
+    unsigned int blockDimy = get_local_size(1);
+    unsigned int numTiles = numBodies / mul24(blockDimx, blockDimy);
+    
+    unsigned int index = mul24(blockIdxx, blockDimx) + threadIdxx;
+    
+    int indN = 0;
+    
+    for (unsigned int i = 0; i < numEdges; i++) {
+    	
+    	barrier(CLK_LOCAL_MEM_FENCE);
+    	
+    	if (index == edges[i].x) {
+    		indN = (int)edges[i].y;
+    	}
+    	else if (index == edges[i].y) {
+    		indN = (int)edges[i].x;
+    	}
+    	else {
+    		continue;
+    	}
+    	
+    	Fp.x += oldForces[indN].x;
+    	Fp.y += oldForces[indN].y;
+    	Fp.z += oldForces[indN].z;
+    	
+    	barrier(CLK_LOCAL_MEM_FENCE);
+    }
+    
+    return Fp;
+}
+
 REAL3 computeFp(int numBodies, __global REAL4* positions, __global REAL4* velocities, __global REAL3 *edges, int numEdges) {
 
 	REAL3 Fp = ZERO3;
@@ -305,8 +346,8 @@ REAL3 computeFp(int numBodies, __global REAL4* positions, __global REAL4* veloci
     
     int indN = 0;
     
-    float Ks = 0.0001;
-    float Kd = 0.0001;
+    float Ks = 0.001;
+    float Kd = 0.001;
     REAL4 tmpVec = ZERO4;
  	REAL4 tmpVecVel = ZERO4;
     REAL vectorSize = 1.0;
@@ -349,62 +390,35 @@ REAL3 computeFp(int numBodies, __global REAL4* positions, __global REAL4* veloci
     	vectorSize = rsqrt(tmpVec.x*tmpVec.x + tmpVec.y*tmpVec.y + tmpVec.z*tmpVec.z);
     	
     	// vypocitame Fs
-    	Fs.x = Ks*(tmpVec.x/vectorSize)*(vectorSize-edges[i].z);
-    	Fs.y = Ks*(tmpVec.y/vectorSize)*(vectorSize-edges[i].z);
-    	Fs.z = Ks*(tmpVec.z/vectorSize)*(vectorSize-edges[i].z);
+    	Fs.x = Ks*(vectorSize-edges[i].z);
+    	Fs.y = Ks*(vectorSize-edges[i].z);
+    	Fs.z = Ks*(vectorSize-edges[i].z);
+    	
+    	/*Fs.x = Ks*(edges[i].z-vectorSize)*(tmpVec.x/vectorSize);
+    	Fs.y = Ks*(edges[i].z-vectorSize)*(tmpVec.y/vectorSize);
+    	Fs.z = Ks*(edges[i].z-vectorSize)*(tmpVec.z/vectorSize);*/
+    	
+    	//Fs.x = Ks*((vectorSize-edges[i].z)/vectorSize)*(tmpVec.x);
+    	//Fs.y = Ks*((vectorSize-edges[i].z)/vectorSize)*(tmpVec.y);
+    	//Fs.z = Ks*((vectorSize-edges[i].z)/vectorSize)*(tmpVec.z);
     	
     	// vypocitame Fd
     	Fd.x = Kd*(tmpVecVel.x)*(tmpVec.x/vectorSize);
     	Fd.y = Kd*(tmpVecVel.y)*(tmpVec.y/vectorSize);
     	Fd.z = Kd*(tmpVecVel.z)*(tmpVec.z/vectorSize);
-    	
+    	    	
     	// dostaneme Fp
-    	Fp.x = (Fs.x+Fd.x);
-    	Fp.y = (Fs.y+Fd.y);
-    	Fp.z = (Fs.z+Fd.z);
+    	Fp.x += (Fs.x+Fd.x);
+    	Fp.y += (Fs.y+Fd.y);
+    	Fp.z += (Fs.z+Fd.z);
     	
     	barrier(CLK_LOCAL_MEM_FENCE);
     }
     
-    return Fp;
-}
-
-REAL3 computeFp_new(int numBodies, int numEdges, __global REAL3 *edges, __global REAL4* oldForces) {
-
-	REAL3 Fp = ZERO3;
-
-	unsigned int threadIdxx = get_local_id(0);
-    unsigned int threadIdxy = get_local_id(1);
-    unsigned int blockIdxx = get_group_id(0);
-    unsigned int blockIdxy = get_group_id(1);
-    unsigned int gridDimx = get_num_groups(0);
-    unsigned int blockDimx = get_local_size(0);
-    unsigned int blockDimy = get_local_size(1);
-    unsigned int numTiles = numBodies / mul24(blockDimx, blockDimy);
-    
-    unsigned int index = mul24(blockIdxx, blockDimx) + threadIdxx;
-    
-    int indN = 0;
-    
-    for (unsigned int i = 0; i < numEdges; i++) {
-    	
-    	barrier(CLK_LOCAL_MEM_FENCE);
-    	
-    	if (index == edges[i].x) {
-    		indN = (int)edges[i].y;
-    	}
-    	else if (index == edges[i].y) {
-    		indN = (int)edges[i].x;
-    	}
-    	else {
-    		continue;
-    	}
-    	
-    	Fp.x += oldForces[indN].x;
-    	Fp.y += oldForces[indN].y;
-    	Fp.z += oldForces[indN].z;
-    	
-    	barrier(CLK_LOCAL_MEM_FENCE);
+    if (index == 0) {
+    	Fp.x = 0;
+    	Fp.y = 0;
+    	Fp.z = 0;
     }
     
     return Fp;
@@ -576,3 +590,222 @@ __kernel void integrateBodies_noMT(
     newVel[index] = vel;
 }
 
+/************************************************************************************************
+ ************************************************************************************************
+ ************************************************************************************************
+ *** D e f o r m a b l e   o b j e c t s   S I M U L A T I O N **********************************
+ ************************************************************************************************
+ ************************************************************************************************
+ ************************************************************************************************
+ *                                                                                              *
+ * 			N  E  W     I  M  P  L  E  M  E  N  T  A  T  I  O  N                                *
+ *                                                                                              *
+ ************************************************************************************************/
+ 
+ /*********************************** P H Y S I C S *********************************************/
+ 
+ REAL3 getFg(int numBodies) {
+	REAL3 Fg = ZERO3;
+	
+	unsigned int threadIdxx = get_local_id(0);
+    unsigned int threadIdxy = get_local_id(1);
+    unsigned int blockIdxx = get_group_id(0);
+    unsigned int blockIdxy = get_group_id(1);
+    unsigned int gridDimx = get_num_groups(0);
+    unsigned int blockDimx = get_local_size(0);
+    unsigned int blockDimy = get_local_size(1);
+    unsigned int numTiles = numBodies / mul24(blockDimx, blockDimy);
+    
+    // predpokladame, ze mass castice je 1, G je 9.823
+    Fg.x = 0;
+    Fg.y = -9.8230;
+    Fg.z = 0;
+	
+	return Fg;
+}
+
+REAL3 getFd(int numBodies, REAL4 bodyVel) {
+
+	REAL3 Fd = ZERO3;
+	
+	unsigned int threadIdxx = get_local_id(0);
+    unsigned int threadIdxy = get_local_id(1);
+    unsigned int blockIdxx = get_group_id(0);
+    unsigned int blockIdxy = get_group_id(1);
+    unsigned int gridDimx = get_num_groups(0);
+    unsigned int blockDimx = get_local_size(0);
+    unsigned int blockDimy = get_local_size(1);
+    unsigned int numTiles = numBodies / mul24(blockDimx, blockDimy);
+    
+    //koeficient odporu vzduchu som si urcil ako 0.3
+    Fd.x = -0.3*bodyVel.x;
+    Fd.y = -0.3*bodyVel.y;
+    Fd.z = -0.3*bodyVel.z;
+	
+	return Fd;
+}
+
+REAL3 getFc(int numBodies, REAL4 Fc) {
+
+    REAL3 k_Fc = ZERO3;
+	
+	unsigned int threadIdxx = get_local_id(0);
+    unsigned int threadIdxy = get_local_id(1);
+    unsigned int blockIdxx = get_group_id(0);
+    unsigned int blockIdxy = get_group_id(1);
+    unsigned int gridDimx = get_num_groups(0);
+    unsigned int blockDimx = get_local_size(0);
+    unsigned int blockDimy = get_local_size(1);
+    unsigned int numTiles = numBodies / mul24(blockDimx, blockDimy);
+    
+    
+    k_Fc.x = Fc.x;
+    k_Fc.y = Fc.y;
+    k_Fc.z = Fc.z;
+	
+	return k_Fc;
+}
+ 
+ /*********************************** K E R N E L S *********************************************/
+ 
+ __kernel void externForces(__global REAL4* newForces,   
+                           __global REAL4* Fc_a, 
+                           __global REAL4* velocities,
+                           int numBodies) {
+ 	
+ 	REAL3 Fg = ZERO3; // gravitacna
+    REAL3 Fd = ZERO3; // odpor prostredia
+    REAL3 Fc = ZERO3; // impulz od pouzivatela
+    REAL4 Fsum = ZERO4; // celkova sila
+    
+    unsigned int threadIdxx = get_local_id(0);
+    unsigned int threadIdxy = get_local_id(1);
+    unsigned int blockIdxx = get_group_id(0);
+    unsigned int blockIdxy = get_group_id(1);
+    unsigned int gridDimx = get_num_groups(0);
+    unsigned int blockDimx = get_local_size(0);
+    unsigned int blockDimy = get_local_size(1);
+    unsigned int numTiles = numBodies / mul24(blockDimx, blockDimy);
+    
+	unsigned int index = mul24(blockIdxx, blockDimx) + threadIdxx;
+    
+    // todo: in this function will solve all forces
+    
+    Fg = getFg(numBodies);
+    Fd = getFd(numBodies, velocities[index]);
+    Fc = getFc(numBodies, Fc_a[index]);
+   
+    Fsum.x = Fg.x + Fd.x + Fc.x;
+    Fsum.y = Fg.y + Fd.y + Fc.y;
+    Fsum.z = Fg.z + Fd.z + Fc.z;
+    Fsum.w = 1;
+   
+    newForces[index] = Fsum;
+ }
+ 
+ __kernel void springsForces(__global REAL4* newForces,
+ 			__global REAL4* newEdges,
+ 			__global REAL4* oldPositions, 
+            __global REAL4* oldEdges,
+            int numEdges) {
+ 	
+	unsigned int threadIdxx = get_local_id(0);
+    unsigned int threadIdxy = get_local_id(1);
+    unsigned int blockIdxx = get_group_id(0);
+    unsigned int blockIdxy = get_group_id(1);
+    unsigned int gridDimx = get_num_groups(0);
+    unsigned int blockDimx = get_local_size(0);
+    unsigned int blockDimy = get_local_size(1);
+    unsigned int numTiles = numEdges / mul24(blockDimx, blockDimy);
+    
+    unsigned int index = mul24(blockIdxx, blockDimx) + threadIdxx;
+    
+    REAL Ks = 100;
+   
+   	REAL restL = oldEdges[index].z;
+   
+   	int P1 = 0, P2 = 0; 
+	P1 = oldEdges[index].x;
+	P2 = oldEdges[index].y;
+	
+	REAL3 tmpVec = ZERO3;
+	tmpVec.x = oldPositions[P1].x - oldPositions[P2].x;
+	tmpVec.y = oldPositions[P1].y - oldPositions[P2].y;
+	tmpVec.z = oldPositions[P1].z - oldPositions[P2].z;
+   
+  	REAL vectorLength;
+  	vectorLength = sqrt(tmpVec.x*tmpVec.x + tmpVec.y*tmpVec.y + tmpVec.z*tmpVec.z);
+    	
+    // vypocitame Fs
+    REAL3 Fs = ZERO3;
+    Fs.x = Ks * (restL - vectorLength) * (tmpVec.x / vectorLength);
+    Fs.y = Ks * (restL - vectorLength) * (tmpVec.y / vectorLength);
+    Fs.z = Ks * (restL - vectorLength) * (tmpVec.z / vectorLength);    
+   
+	newForces[P1].x += Fs.x;
+	newForces[P1].y += Fs.y;
+	newForces[P1].z += Fs.z;
+	
+	newForces[P2].x -= Fs.x;
+	newForces[P2].y -= Fs.y;
+	newForces[P2].z -= Fs.z;
+	
+	newEdges[index] = oldEdges[index];
+ 
+ }
+ 
+ __kernel void integrateBodies(__global REAL4* newPos,
+            __global REAL4* newVel, 
+            __global REAL4* newEdg,
+            __global REAL4* oldPos,
+            __global REAL4* oldVel,
+            __global REAL4* oldEdg,
+            __global REAL4* oldForces,
+            REAL deltaTime,
+            REAL damping) {
+ 
+ 	unsigned int threadIdxx = get_local_id(0);
+    unsigned int threadIdxy = get_local_id(1);
+    unsigned int blockIdxx = get_group_id(0);
+    unsigned int blockIdxy = get_group_id(1);
+    unsigned int gridDimx = get_num_groups(0);
+    unsigned int blockDimx = get_local_size(0);
+    unsigned int blockDimy = get_local_size(1);
+
+    unsigned int index = mul24(blockIdxx, blockDimx) + threadIdxx;
+    
+    REAL4 pos = oldPos[index];
+    REAL4 vel = oldVel[index];  
+    REAL3 accel = ZERO3;
+
+    // acceleration = force \ mass;
+    // mass is 1
+    REAL mass;
+    mass = 1;
+    
+    accel.x = oldForces[index].x / mass;
+    accel.y = oldForces[index].y / mass;
+    accel.z = oldForces[index].z / mass;
+     
+    // new velocity = old velocity + acceleration * deltaTime
+    // note we factor out the body's mass from the equation, here and in bodyBodyInteraction 
+    // (because they cancel out).  Thus here force == acceleration
+       
+    vel.x += accel.x * deltaTime;
+    vel.y += accel.y * deltaTime;
+    vel.z += accel.z * deltaTime;  
+
+    vel.x *= damping;
+    vel.y *= damping;
+    vel.z *= damping;
+        
+    // new position = old position + velocity * deltaTime
+    pos.x += vel.x * deltaTime;
+    pos.y += vel.y * deltaTime;
+    pos.z += vel.z * deltaTime;
+
+    // store new position and velocity
+    newPos[index] = pos;
+    newVel[index] = vel;
+ }
+ 

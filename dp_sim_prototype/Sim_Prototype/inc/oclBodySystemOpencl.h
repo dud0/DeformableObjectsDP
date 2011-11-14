@@ -62,6 +62,10 @@ class BodySystemOpenCL : public BodySystem
         cl_kernel MT_kernel;
         cl_kernel noMT_kernel;
 
+        cl_kernel extFor_kernel;
+        cl_kernel sprFor_kernel;
+        cl_kernel intBod_kernel;
+
         // CPU data
         float* m_hPos;
         float* m_hVel;

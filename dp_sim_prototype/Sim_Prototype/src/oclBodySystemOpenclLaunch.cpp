@@ -32,9 +32,6 @@ extern "C"
 		{
 			memSize = sizeof( float) * 4 * numBodies;
 		}
-		else if (dFlag == 3) {
-			memSize = sizeof( float) * 3 * numBodies;
-		}
 		else
 		{
 			memSize = sizeof( double) * 4 * numBodies;
@@ -62,36 +59,24 @@ extern "C"
 
 		if (bDouble)
 		{
-			if (__size == 3) {
-				size = numBodies * 3 * sizeof(double);
-			}
-			else {
-				size = numBodies * 4 * sizeof(double);
-			}
+
+			size = numBodies * 4 * sizeof(double);
+
 			double *dHost = (double *)malloc(size);
 			ciErrNum = clEnqueueReadBuffer(cqCommandQueue, device, CL_TRUE, 0, size, dHost, 0, NULL, NULL);
-			if (__size == 3) {
-				for (int i = 0; i < numBodies * 3; i++)
-				{
-					host[i] = (float)(dHost[i]);
-				}
+
+			for (int i = 0; i < numBodies * 4; i++)
+			{
+				host[i] = (float)(dHost[i]);
 			}
-			else {
-				for (int i = 0; i < numBodies * 4; i++)
-				{
-					host[i] = (float)(dHost[i]);
-				}
-			}
+
 			free(dHost);
 		}
 		else
 		{
-			if (__size == 3) {
-				size = numBodies * 3 * sizeof(float);
-			}
-			else {
-				size = numBodies * 4 * sizeof(float);
-			}
+
+			size = numBodies * 4 * sizeof(float);
+
         	ciErrNum = clEnqueueReadBuffer(cqCommandQueue, device, CL_TRUE, 0, size, host, 0, NULL, NULL);
         }
 		oclCheckError(ciErrNum, CL_SUCCESS);
@@ -109,38 +94,24 @@ extern "C"
         unsigned int size;
 		if (bDouble)
 		{
-			if (__size == 3) {
-				size = numBodies * 3 * sizeof(double);
-			}
-			else {
-				size = numBodies * 4 * sizeof(double);
-			}
+			size = numBodies * 4 * sizeof(double);
+
 			double *cdHost = (double *)malloc(size);
-			if (__size == 3) {
-				for (int i = 0; i < numBodies * 3; i++)
-				{
-					cdHost[i] = (double)host[i];
-				}
+
+			for (int i = 0; i < numBodies * 4; i++)
+			{
+				cdHost[i] = (double)host[i];
 			}
-			else {
-				for (int i = 0; i < numBodies * 4; i++)
-				{
-					cdHost[i] = (double)host[i];
-				}
-			}
+
 			ciErrNum = clEnqueueWriteBuffer(cqCommandQueue, device, CL_TRUE, 0, size, cdHost, 0, NULL, NULL);
 			free(cdHost);
 		}
 		else
 		{
-			if (__size == 3) {
-				size = numBodies*3*sizeof(float);
-			}
-			else {
-				size = numBodies*4*sizeof(float);
-			}
-        	ciErrNum = clEnqueueWriteBuffer(cqCommandQueue, device, CL_TRUE, 0, size, host, 0, NULL, NULL);
-        }
+			size = numBodies*4*sizeof(float);
+
+			ciErrNum = clEnqueueWriteBuffer(cqCommandQueue, device, CL_TRUE, 0, size, host, 0, NULL, NULL);
+		}
 		oclCheckError(ciErrNum, CL_SUCCESS);
     }
 
@@ -262,6 +233,188 @@ extern "C"
             oclCheckError(ciErrNum, CL_SUCCESS);
         }
     }
+
+
+    /*
+     *
+     *
+     *
+     *
+     *
+     * 	   DEFORMABLE OBJECTS SIMULATION
+     *
+     *
+     *
+     *
+     *
+     *
+     */
+
+    void computeExternalForces(cl_command_queue cqCommandQueue,
+    		cl_kernel k,
+    		cl_mem newForces,
+    		cl_mem oldFc,
+    		cl_mem oldVelocities,
+    		int numBodies, int p, int q,
+    		bool bDouble)
+    {
+    	int sharedMemSize;
+
+    	//for double precision
+    	if (bDouble)
+    	{
+    		sharedMemSize = p * q * sizeof(cl_double4); // 4 doubles for pos
+    	}
+    	else
+    	{
+    		sharedMemSize = p * q * sizeof(cl_float4); // 4 floats for pos
+    	}
+
+    	size_t global_work_size[2];
+    	size_t local_work_size[2];
+    	cl_int ciErrNum = CL_SUCCESS;
+    	cl_kernel kernel;
+
+    	kernel = k;
+
+    	ciErrNum |= clSetKernelArg(kernel, 0, sizeof(cl_mem), (void *)&newForces);
+    	ciErrNum |= clSetKernelArg(kernel, 1, sizeof(cl_mem), (void *)&oldFc);
+    	ciErrNum |= clSetKernelArg(kernel, 2, sizeof(cl_mem), (void *)&oldVelocities);
+    	ciErrNum |= clSetKernelArg(kernel, 3, sizeof(cl_int), (void *)&numBodies);
+
+    	oclCheckError(ciErrNum, CL_SUCCESS);
+
+    	// set work-item dimensions
+    	local_work_size[0] = p;
+    	local_work_size[1] = q;
+    	global_work_size[0]= numBodies;
+    	global_work_size[1]= q;
+
+    	// execute the kernel:
+    	ciErrNum = clEnqueueNDRangeKernel(cqCommandQueue, kernel, 2, NULL, global_work_size, local_work_size, 0, NULL, NULL);
+
+    	oclCheckError(ciErrNum, CL_SUCCESS);
+    }
+
+    void computeSpringsForces(cl_command_queue cqCommandQueue,
+    		cl_kernel k,
+    		cl_mem newForces,
+    		cl_mem newEdges,
+    		cl_mem oldPositions,
+    		cl_mem oldEdges,
+    		int numEdges, int p, int q,
+    		bool bDouble)
+    {
+    	int sharedMemSize;
+
+    	//for double precision
+    	if (bDouble)
+    	{
+    		sharedMemSize = p * q * sizeof(cl_double4); // 4 doubles for pos
+    	}
+    	else
+    	{
+    		sharedMemSize = p * q * sizeof(cl_float4); // 4 floats for pos
+    	}
+
+    	size_t global_work_size[2];
+    	size_t local_work_size[2];
+    	cl_int ciErrNum = CL_SUCCESS;
+    	cl_kernel kernel;
+
+    	kernel = k;
+
+    	ciErrNum |= clSetKernelArg(kernel, 0, sizeof(cl_mem), (void *)&newForces);
+    	ciErrNum |= clSetKernelArg(kernel, 1, sizeof(cl_mem), (void *)&newEdges);
+    	ciErrNum |= clSetKernelArg(kernel, 2, sizeof(cl_mem), (void *)&oldPositions);
+    	ciErrNum |= clSetKernelArg(kernel, 3, sizeof(cl_mem), (void *)&oldEdges);
+    	ciErrNum |= clSetKernelArg(kernel, 4, sizeof(cl_int), (void *)&numEdges);
+
+    	oclCheckError(ciErrNum, CL_SUCCESS);
+
+    	// set work-item dimensions
+    	local_work_size[0] = numEdges;   // todo IMPORTANT!! this is XXX there was = p;
+    	local_work_size[1] = q;
+    	global_work_size[0]= numEdges;
+    	global_work_size[1]= q;
+
+    	// execute the kernel:
+    	ciErrNum = clEnqueueNDRangeKernel(cqCommandQueue, kernel, 2, NULL, global_work_size, local_work_size, 0, NULL, NULL);
+
+    	oclCheckError(ciErrNum, CL_SUCCESS);
+    }
+
+    void integrateSystem(cl_command_queue cqCommandQueue,
+    		cl_kernel k,
+    		cl_mem newPositions,
+    		cl_mem newVelocities,
+    		cl_mem newEdges,
+    		cl_mem oldPositions,
+    		cl_mem oldVelocities,
+    		cl_mem oldEdges,
+    		cl_mem oldForces,
+    		float deltaTime, float damping,
+    		int numBodies, int p, int q,
+    		bool bDouble)
+    {
+    	int sharedMemSize;
+
+    	//for double precision
+    	if (bDouble)
+    	{
+    		sharedMemSize = p * q * sizeof(cl_double4); // 4 doubles for pos
+    	}
+    	else
+    	{
+    		sharedMemSize = p * q * sizeof(cl_float4); // 4 floats for pos
+    	}
+
+    	size_t global_work_size[2];
+    	size_t local_work_size[2];
+    	cl_int ciErrNum = CL_SUCCESS;
+    	cl_kernel kernel;
+
+    	kernel = k;
+
+    	ciErrNum |= clSetKernelArg(kernel, 0, sizeof(cl_mem), (void *)&newPositions);
+    	ciErrNum |= clSetKernelArg(kernel, 1, sizeof(cl_mem), (void *)&newVelocities);
+    	ciErrNum |= clSetKernelArg(kernel, 2, sizeof(cl_mem), (void *)&newEdges);
+    	ciErrNum |= clSetKernelArg(kernel, 3, sizeof(cl_mem), (void *)&oldPositions);
+    	ciErrNum |= clSetKernelArg(kernel, 4, sizeof(cl_mem), (void *)&oldVelocities);
+    	ciErrNum |= clSetKernelArg(kernel, 5, sizeof(cl_mem), (void *)&oldEdges);
+    	ciErrNum |= clSetKernelArg(kernel, 6, sizeof(cl_mem), (void *)&oldForces);
+    	ciErrNum |= clSetKernelArg(kernel, 7, sizeof(cl_float), (void *)&deltaTime);
+    	ciErrNum |= clSetKernelArg(kernel, 8, sizeof(cl_float), (void *)&damping);
+
+    	oclCheckError(ciErrNum, CL_SUCCESS);
+
+    	// set work-item dimensions
+    	local_work_size[0] = p;
+    	local_work_size[1] = q;
+    	global_work_size[0]= numBodies;
+    	global_work_size[1]= q;
+
+    	// execute the kernel:
+    	ciErrNum = clEnqueueNDRangeKernel(cqCommandQueue, kernel, 2, NULL, global_work_size, local_work_size, 0, NULL, NULL);
+
+    	oclCheckError(ciErrNum, CL_SUCCESS);
+    }
+
+    /*
+     *
+     *
+     *
+     *
+     *
+     * 	   DEFORMABLE OBJECTS SIMULATION
+     *
+     *
+     *
+     *
+     *
+     *
+     */
+
 
     // Function to read in kernel from uncompiled source, create the OCL program and build the OCL program 
     // **************************************************************************************************

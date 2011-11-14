@@ -24,6 +24,7 @@ BodySystemCPU::BodySystemCPU(int numBodies, int numEdges)
 {
     m_pos[0] = m_pos[1] = 0;
     m_vel[0] = m_vel[1] = 0;
+    m_edge[0] = m_edge[1] = 0;
 
     _initialize(numBodies, numEdges);
 
@@ -40,18 +41,22 @@ void BodySystemCPU::_initialize(int numBodies, int numEdges)
     oclCheckError(m_bInitialized, shrFALSE);
 
     m_numBodies = numBodies;
-
+    m_numEdges = numEdges;
 
     m_pos[0] = new float[m_numBodies*4];
     m_pos[1] = new float[m_numBodies*4];
     m_vel[0] = new float[m_numBodies*4];
     m_vel[1] = new float[m_numBodies*4];
+    m_edge[0] = new float[m_numBodies*4];
+    m_edge[1] = new float[m_numBodies*4];
     m_force  = new float[m_numBodies*4];
 
     memset(m_pos[0], 0, m_numBodies*4*sizeof(float));
     memset(m_pos[1], 0, m_numBodies*4*sizeof(float));
     memset(m_vel[0], 0, m_numBodies*4*sizeof(float));
     memset(m_vel[1], 0, m_numBodies*4*sizeof(float));
+    memset(m_edge[0], 0, m_numEdges*4*sizeof(float));
+    memset(m_edge[1], 0, m_numEdges*4*sizeof(float));
     memset(m_force, 0, m_numBodies*4*sizeof(float));
 
     m_bInitialized = true;
@@ -65,6 +70,8 @@ void BodySystemCPU::_finalize()
     delete [] m_pos[1];
     delete [] m_vel[0];
     delete [] m_vel[1];
+    delete [] m_edge[0];
+    delete [] m_edge[1];
     delete [] m_force;
 }
 
@@ -90,6 +97,9 @@ float* BodySystemCPU::getArray(BodyArray array)
     case BODYSYSTEM_VELOCITY:
         data = m_vel[m_currentRead];
         break;
+    case BODYSYSTEM_EDGE:
+    	data = m_edge[m_currentRead];
+    	break;
     }
 
     return data;
@@ -109,6 +119,9 @@ void BodySystemCPU::setArray(BodyArray array, const float* data)
     case BODYSYSTEM_VELOCITY:
         target = m_vel[m_currentRead];
         break;
+    case BODYSYSTEM_EDGE:
+    	target = m_edge[m_currentRead];
+    	break;
     }
 
     memcpy(target, data, m_numBodies*4*sizeof(float));
@@ -349,6 +362,12 @@ void randomizeBodies(int *numEdges, NBodyConfig config, float* pos, float* vel, 
     				force[p] = 1.0f;
     				forces[p] = 0.0f;
     				pos[p++] = 1.0f;
+
+    				vel[v++] = 0.0f;
+    				vel[v++] = 0.0f;
+    				vel[v++] = 0.0f;
+    				vel[v++] = 1.0f;
+
     				*numEdges += 3;
     			}
     			*numEdges -= 1;
@@ -357,9 +376,17 @@ void randomizeBodies(int *numEdges, NBodyConfig config, float* pos, float* vel, 
     	}
     	*numEdges -= ((int)tmpNUM*(int)tmpNUM);
 
-    	force[0] = 0.0f;
-    	force[1] = 150.0f;
-    	force[2] = 0.0f;
+
+    	force[0*4+1] = 10.0f;
+    	force[1*4+1] = 10.0f;
+        force[2*4+1] = 10.0f;
+    	force[9*4+1] = 10.0f;
+    	force[10*4+1] = 10.0f;
+    	force[11*4+1] = 10.0f;
+    	force[18*4+1] = 10.0f;
+    	force[19*4+1] = 10.0f;
+    	force[20*4+1] = 10.0f;
+
 
     	int ii = 0;
     	float x, y, z;
@@ -367,30 +394,6 @@ void randomizeBodies(int *numEdges, NBodyConfig config, float* pos, float* vel, 
     	float len = normalize(point);
     	float scale = clusterScale;
     	float vscale = scale * velocityScale;
-
-    	while(ii < numBodies) {
-    		x = 0.0f; // * (rand() / (float) RAND_MAX * 2 - 1);
-    		y = 0.0f; // * (rand() / (float) RAND_MAX * 2 - 1);
-    		z = 1.0f; // * (rand() / (float) RAND_MAX * 2 - 1);
-    		float3 axis = {x, y, z};
-    		normalize(axis);
-
-    		if (1 - dot(point, axis) < 1e-6)
-    		{
-    			axis.x = point.y;
-    			axis.y = point.x;
-    			normalize(axis);
-    		}
-    		//if (point.y < 0) axis = scalevec(axis, -1);
-    		float3 vv = {pos[4*ii], pos[4*ii+1], pos[4*ii+2]};
-    		vv = cross(vv, axis);
-    		vel[v++] = vv.x * vscale;
-    		vel[v++] = vv.y * vscale;
-    		vel[v++] = vv.z * vscale;
-    		vel[v++] = 1.0f;
-
-    		ii++;
-    	}
 
         }
         break;

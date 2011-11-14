@@ -72,10 +72,18 @@ void ParticleRenderer::_drawPoints(bool color)
             }
         }
         glEnd();
+
+        glBegin(GL_LINES);
+        {
+        	glVertex3f(m_pos[0], m_pos[1], m_pos[2]); // origin of the line
+        	glVertex3f(m_pos[4], m_pos[5], m_pos[6]); // ending point of the line
+        }
+        glEnd( );
+
     }
     else
     {
-        glEnableClientState(GL_VERTEX_ARRAY);                
+        glEnableClientState(GL_VERTEX_ARRAY);
         
         glBindBufferARB(GL_ARRAY_BUFFER_ARB, (unsigned int)m_pbo);
         glVertexPointer(4, GL_FLOAT, 0, 0);
@@ -90,7 +98,7 @@ void ParticleRenderer::_drawPoints(bool color)
         glDrawArrays(GL_POINTS, 0, m_numParticles);
         glBindBufferARB(GL_ARRAY_BUFFER_ARB, 0);
         glDisableClientState(GL_VERTEX_ARRAY); 
-        glDisableClientState(GL_COLOR_ARRAY); 
+        glDisableClientState(GL_COLOR_ARRAY);
     }
 }
 
