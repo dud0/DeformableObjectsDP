@@ -135,7 +135,7 @@ float4 calcNormal(float4 v0, float4 v1, float4 v2)
 // version that calculates flat surface normal for each triangle
 __kernel
 void
-generateTriangles2(__global float4 *pos, __global float4 *norm, __global uint *compactedVoxelArray, __global uint *numVertsScanned, 
+generateTriangles2(__global float4 *pos, __global float3 *norm, __global uint *compactedVoxelArray, __global uint *numVertsScanned, 
                    __global int4 *points,
                    uint4 gridSize, uint4 gridSizeShift, uint4 gridSizeMask,
                    float4 voxelSize, float isoValue, uint activeVoxels, uint maxVerts, 
@@ -227,16 +227,22 @@ generateTriangles2(__global float4 *pos, __global float4 *norm, __global uint *c
 
         // calculate triangle surface normal
         float4 n = calcNormal(v[0], v[1], v[2]);
+        
+        float3 normPokus;
+        
+        normPokus.x = n.x;
+        normPokus.y = n.y;
+        normPokus.z = n.z;
 
         if (index < (maxVerts - 3)) {
             pos[index] = v[0];
-            norm[index] = n;
+            norm[index] = normPokus;
 
             pos[index+1] = v[1];
-            norm[index+1] = n;
+            norm[index+1] = normPokus;
 
             pos[index+2] = v[2];
-            norm[index+2] = n;
+            norm[index+2] = normPokus;
         }
     }
 }

@@ -122,13 +122,13 @@ public:
 
 	vl::Geometry * getNewGeometry() {
 		vl::Geometry *geom = new vl::Geometry;
-		vl::ref<vl::ArrayFloat3> vert3 = new vl::ArrayFloat3;
+		vl::ref<vl::ArrayFloat4> vert4 = new vl::ArrayFloat4;
 
-		vert3->setBufferObjectDirty(false);
-		vert3->bufferObject()->setHandle(posVbo);
+		vert4->setBufferObjectDirty(false);
+		vert4->bufferObject()->setHandle(posVbo);
 		//vert3->resize(maxVerts);
 
-		geom->setVertexArray(vert3.get());
+		geom->setVertexArray(vert4.get());
 
 		vl::ref<vl::ArrayFloat3> norm3 = new vl::ArrayFloat3;
 
@@ -137,10 +137,6 @@ public:
 		//norm3->resize(maxVerts);
 
 		geom->setNormalArray(norm3.get());
-
-		if(vl::Has_BufferObject && geom->isBufferObjectEnabled() && !geom->isDisplayListEnabled()) {
-			fprintf(stderr, "VBO on");
-		}
 
 		polys = new vl::DrawArrays(vl::PT_TRIANGLES, 0, 0);
 
@@ -372,14 +368,14 @@ protected:
 		printf("grid: %d x %d x %d = %d voxels\n", gridSize[0], gridSize[1], gridSize[2], numVoxels);
 		printf("max verts = %d\n", maxVerts);
 
-		pointCnt=27;
-		cl_int points[27][4];
+		pointCnt=729;
+		cl_int points[729][4];
 
 		int i,j,k, pointIndex=0;
 
-		for(i=12;i<21;i+=3) {
-			for(j=12;j<21;j+=3) {
-				for(k=12;k<21;k+=3) {
+		for(i=12;i<21;i+=1) {
+			for(j=12;j<21;j+=1) {
+				for(k=12;k<21;k+=1) {
 					points[pointIndex][0]=i;
 					points[pointIndex][1]=j;
 					points[pointIndex++][2]=k;
@@ -390,7 +386,7 @@ protected:
 		// create VBOs
 		if( !bQATest) {
 			createVBO(&posVbo, maxVerts*sizeof(float)*4, d_pos);
-			createVBO(&normalVbo, maxVerts*sizeof(float)*4, d_normal);
+			createVBO(&normalVbo, maxVerts*sizeof(float)*3, d_normal);
 		}
 
 		// allocate textures
@@ -405,46 +401,6 @@ protected:
 		d_compVoxelArray = clCreateBuffer(cxGPUContext, CL_MEM_READ_WRITE, memSize, 0, &ciErrNum);
 		d_points = clCreateBuffer(cxGPUContext, CL_MEM_READ_WRITE, sizeof(cl_int)*4*pointCnt, &points, &ciErrNum);
 		clEnqueueWriteBuffer(cqCommandQueue , d_points, CL_TRUE, 0, sizeof(cl_int)*4*pointCnt, &points, NULL, NULL,NULL);
-	}
-
-	////////////////////////////////////////////////////////////////////////////////
-	//! Initialize OpenGL
-	////////////////////////////////////////////////////////////////////////////////
-	bool
-	initGL()
-	{
-		// default initialization
-		glClearColor(0.1f, 0.2f, 0.3f, 1.0f);
-		glEnable(GL_DEPTH_TEST);
-
-		// good old-fashioned fixed function lighting
-		float black[]    = { 0.0f, 0.0f, 0.0f, 1.0f };
-		float white[]    = { 1.0f, 1.0f, 1.0f, 1.0f };
-		float ambient[]  = { 0.1f, 0.1f, 0.1f, 1.0f };
-		float diffuse[]  = { 0.9f, 0.9f, 0.9f, 1.0f };
-		float lightPos[] = { 0.0f, 0.0f, 1.0f, 0.0f };
-
-		glMaterialfv(GL_FRONT_AND_BACK, GL_AMBIENT, ambient);
-		glMaterialfv(GL_FRONT_AND_BACK, GL_DIFFUSE, diffuse);
-		glMaterialfv(GL_FRONT_AND_BACK, GL_SPECULAR, black);
-
-		glLightfv(GL_LIGHT0, GL_AMBIENT, white);
-		glLightfv(GL_LIGHT0, GL_DIFFUSE, white);
-		glLightfv(GL_LIGHT0, GL_SPECULAR, white);
-		glLightfv(GL_LIGHT0, GL_POSITION, lightPos);
-
-		glLightModelfv(GL_LIGHT_MODEL_AMBIENT, black);
-
-		glEnable(GL_LIGHT0);
-		glEnable(GL_NORMALIZE);
-
-		// load shader program
-		gl_Shader = compileASMShader(GL_FRAGMENT_PROGRAM_ARB, shader_code);
-
-
-		g_glInterop = true;
-
-		return true;
 	}
 
 	void initCL() {
@@ -617,7 +573,7 @@ protected:
 			return;
 		}
 
-		printf("activeVoxels = %d\n", activeVoxels);
+		//printf("activeVoxels = %d\n", activeVoxels);
 
 		// compact voxel index array
 		launch_compactVoxels(grid, threads, d_compVoxelArray, d_voxelOccupied, d_voxelOccupiedScan, numVoxels);
@@ -635,7 +591,7 @@ protected:
 			totalVerts = lastElement + lastScanElement;
 		}
 
-		printf("totalVerts = %d\n", totalVerts);
+		//printf("totalVerts = %d\n", totalVerts);
 
 
 		cl_mem interopBuffers[] = {d_pos, d_normal};
@@ -645,6 +601,8 @@ protected:
 			// Acquire PBO for OpenCL writing
 			glFlush();
 			ciErrNum = clEnqueueAcquireGLObjects(cqCommandQueue, 2, interopBuffers, 0, 0, 0);
+
+			//fprintf(stderr, "%d\n", ciErrNum);
 		}
 
 		dim3 grid2((int) ceil(activeVoxels / (float) NTHREADS), 1, 1);
@@ -699,27 +657,6 @@ protected:
 
 				*vbo = 0;
 			}
-		}
-
-		////////////////////////////////////////////////////////////////////////////////
-		// Render isosurface geometry from the vertex buffers
-		////////////////////////////////////////////////////////////////////////////////
-		void renderIsosurface()
-		{
-			vl::glBindBuffer(GL_ARRAY_BUFFER, posVbo);
-			glVertexPointer(4, GL_FLOAT, 0, 0);
-			glEnableClientState(GL_VERTEX_ARRAY);
-
-			vl::glBindBufferARB(GL_ARRAY_BUFFER_ARB, normalVbo);
-			glNormalPointer(GL_FLOAT, sizeof(float)*4, 0);
-			glEnableClientState(GL_NORMAL_ARRAY);
-
-			glColor3f(1.0, 0.0, 0.0);
-			glDrawArrays(GL_TRIANGLES, 0, totalVerts);
-			glDisableClientState(GL_VERTEX_ARRAY);
-			glDisableClientState(GL_NORMAL_ARRAY);
-
-			vl::glBindBuffer(GL_ARRAY_BUFFER, 0);
 		}
 
 		void Cleanup(int iExitCode)
@@ -786,7 +723,7 @@ public:
 		effect->shader()->enable(vl::EN_LIGHTING);
 		// set the front and back material color of the cube
 		// "gocMaterial" stands for "get-or-create Material"
-		effect->shader()->gocMaterial()->setDiffuse( vl::green );
+		effect->shader()->gocMaterial()->setDiffuse( vl::white );
 
 		// install our scene manager, we use the SceneManagerActorTree which is the most generic
 		vl::ref<vl::SceneManagerActorTree> scene_manager = new vl::SceneManagerActorTree;
