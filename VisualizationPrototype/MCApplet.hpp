@@ -110,23 +110,17 @@ public:
 		g_bNoprompt = false;
 		bQATest = false;
 
-		shader_code =
-				"!!ARBfp1.0\n"
-				"TEX result.color, fragment.texcoord, texture[0], 2D; \n"
-				"END";
-
-		//initGL();
 		initCL();
 		initMC();
 	}
 
 	vl::Geometry * getNewGeometry() {
 		vl::Geometry *geom = new vl::Geometry;
+
 		vl::ref<vl::ArrayFloat4> vert4 = new vl::ArrayFloat4;
 
 		vert4->setBufferObjectDirty(false);
 		vert4->bufferObject()->setHandle(posVbo);
-		//vert3->resize(maxVerts);
 
 		geom->setVertexArray(vert4.get());
 
@@ -134,7 +128,6 @@ public:
 
 		norm3->setBufferObjectDirty(false);
 		norm3->bufferObject()->setHandle(normalVbo);
-		//norm3->resize(maxVerts);
 
 		geom->setNormalArray(norm3.get());
 
@@ -243,9 +236,6 @@ protected:
 	bool g_bNoprompt;
 	bool bQATest;
 	const char* cpExecutableName;
-
-	// shader for displaying floating-point texture
-	char *shader_code;
 
 	vl::ref<vl::DrawArrays> polys;
 
@@ -400,7 +390,7 @@ protected:
 		d_voxelOccupiedScan = clCreateBuffer(cxGPUContext, CL_MEM_READ_WRITE, memSize, 0, &ciErrNum);
 		d_compVoxelArray = clCreateBuffer(cxGPUContext, CL_MEM_READ_WRITE, memSize, 0, &ciErrNum);
 		d_points = clCreateBuffer(cxGPUContext, CL_MEM_READ_WRITE, sizeof(cl_int)*4*pointCnt, &points, &ciErrNum);
-		clEnqueueWriteBuffer(cqCommandQueue , d_points, CL_TRUE, 0, sizeof(cl_int)*4*pointCnt, &points, NULL, NULL,NULL);
+		clEnqueueWriteBuffer(cqCommandQueue , d_points, CL_TRUE, 0, sizeof(cl_int)*4*pointCnt, &points, 0, 0, 0);
 	}
 
 	void initCL() {
@@ -512,24 +502,6 @@ protected:
 
 		// Setup Scan
 		initScan(cxGPUContext, cqCommandQueue);
-	}
-
-	GLuint compileASMShader(GLenum program_type, const char *code)
-	{
-		GLuint program_id;
-		vl::glGenProgramsARB(1, &program_id);
-		vl::glBindProgramARB(program_type, program_id);
-		vl::glProgramStringARB(program_type, GL_PROGRAM_FORMAT_ASCII_ARB, (GLsizei) strlen(code), (GLubyte *) code);
-
-		GLint error_pos;
-		glGetIntegerv(GL_PROGRAM_ERROR_POSITION_ARB, &error_pos);
-		if (error_pos != -1) {
-			const GLubyte *error_string;
-			error_string = glGetString(GL_PROGRAM_ERROR_STRING_ARB);
-			shrLog("Program error at position: %d\n%s\n", (int)error_pos, error_string);
-			return 0;
-		}
-		return program_id;
 	}
 
 	////////////////////////////////////////////////////////////////////////////////
@@ -717,13 +689,16 @@ public:
 		vl::ref<vl::Effect> effect = new vl::Effect;
 		// enable depth test and lighting
 		effect->shader()->enable(vl::EN_DEPTH_TEST);
+
+		effect->shader()->enable(vl::EN_NORMALIZE);
 		// add a Light to the scene, since no Transform is associated to the Light it will follow the camera
 		effect->shader()->setRenderState( new vl::Light, 0 );
 		// enable the standard OpenGL lighting
 		effect->shader()->enable(vl::EN_LIGHTING);
+
 		// set the front and back material color of the cube
 		// "gocMaterial" stands for "get-or-create Material"
-		effect->shader()->gocMaterial()->setDiffuse( vl::white );
+		effect->shader()->gocMaterial()->setDiffuse( vl::red );
 
 		// install our scene manager, we use the SceneManagerActorTree which is the most generic
 		vl::ref<vl::SceneManagerActorTree> scene_manager = new vl::SceneManagerActorTree;

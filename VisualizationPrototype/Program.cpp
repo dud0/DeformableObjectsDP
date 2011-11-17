@@ -14,11 +14,11 @@ int main(int argc, char *argv[])
 
   /* setup the OpenGL context format */
   OpenGLContextFormat format;
-  format.setDoubleBuffer(true);
-  format.setRGBABits( 8,8,8,8 );
-  format.setDepthBufferBits(24);
-  format.setStencilBufferBits(8);
-  format.setFullscreen(false);
+  //format.setDoubleBuffer(true);
+  //format.setRGBABits( 8,8,8,8 );
+  //format.setDepthBufferBits(24);
+  //format.setStencilBufferBits(8);
+  //format.setFullscreen(false);
   //format.setMultisampleSamples(16);
   //format.setMultisample(true);
 
@@ -35,7 +35,7 @@ int main(int argc, char *argv[])
   applet->rendering()->as<Rendering>()->camera()->viewport()->setClearColor( black );
 
   /* define the camera position and orientation */
-  vec3 eye    = vec3(0,4,4); // camera position
+  vec3 eye    = vec3(0,2,2); // camera position
   vec3 center = vec3(0,0,0);   // point the camera is looking at
   vec3 up     = vec3(0,1,0);   // up direction
   mat4 view_mat = mat4::getLookAt(eye, center, up);
