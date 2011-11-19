@@ -32,6 +32,12 @@
 #ifndef MCApplet_INCLUDE_ONCE
 #define MCApplet_INCLUDE_ONCE
 
+//simulation headers
+#include "oclBodySystem.h"
+#include "oclBodySystemOpencl.h"
+#include "oclBodySystemOpenclLaunch.h"
+
+//VL
 #include <vlGraphics/Applet.hpp>
 #include <vlGraphics/GeometryPrimitives.hpp>
 #include <vlGraphics/SceneManagerActorTree.hpp>
@@ -80,7 +86,7 @@ public:
 		activeVoxels = 0;
 		totalVerts   = 0;
 
-		isoValue		= 17.5f;
+		isoValue		= 0.9f;
 		dIsoValue		= 0.005f;
 
 		d_pos = 0;
@@ -110,7 +116,46 @@ public:
 		g_bNoprompt = false;
 		bQATest = false;
 
+		int numBodies = 27;
+		int p = 256;
+		int q = 1;
+
+		//simulation init
+		hPos =0;
+		hVel = 0;
+		hF = 0; // Fc
+		hForces = 0; //all Forces
+		hColor = 0;
+		hEdge = 0; // array of all edges
+		nEdges =0;
+
+		m_timestep=0.015f;
+		m_clusterScale=1.54f;
+		m_velocityScale=1.0f;
+		m_softening=0.1f;
+		m_damping=0.8f;
+		m_pointSize=5.0f;
+		m_x=0;
+		m_y=-2;
+		m_z=-100;
+
 		initCL();
+
+		if ((q * p) > 256)
+		{
+			p = 256 / q;
+		}
+
+		if ((q == 1) && (numBodies < p))
+		{
+			p = numBodies;
+		}
+
+		fprintf(stderr, "%d", cdDevices[uiDeviceUsed]);
+
+		InitNbody(cdDevices[uiDeviceUsed], cxGPUContext, cqCommandQueue, numBodies, p, q, false, false, NBODY_CONFIG_SHELL);
+		ResetSim(nbody, numBodies, NBODY_CONFIG_SHELL, false);
+
 		initMC();
 	}
 
@@ -144,6 +189,9 @@ public:
 		if (pass>0)
 			return;
 
+		//run kernels to update particle positions
+		nbody->update(m_timestep);
+
 		// run kernels to generate geometry
 		computeIsosurface();
 
@@ -159,6 +207,26 @@ public:
 	}
 
 protected:
+	//simulation fields
+	BodySystemOpenCL * nbody;
+	float* hPos;
+	float* hVel;
+	float* hF; // Fc
+	float* hForces; //all Forces
+	float* hColor;
+	float* hEdge; // array of all edges
+	int nEdges;
+
+	float m_timestep;
+	float m_clusterScale;
+	float m_velocityScale;
+	float m_softening;
+	float m_damping;
+	float m_pointSize;
+	float m_x, m_y, m_z;
+
+
+	//--
 
 	cl_platform_id cpPlatform;
 	cl_uint uiNumDevices;
@@ -239,6 +307,387 @@ protected:
 
 	vl::ref<vl::DrawArrays> polys;
 
+
+
+	void ResetSim(BodySystem *system, int numBodies, NBodyConfig config, bool useGL)
+	{
+	    shrLog("\nReset Nbody System...\n\n");
+
+	    /*shrLog("\nnEdges = %d\n", nEdges);
+
+	    // initalize the memory
+	    randomizeBodies(&nEdges, config, hPos, hVel, hF, hForces, hColor, activeParams.m_clusterScale,
+			            activeParams.m_velocityScale, numBodies);*/
+
+	    shrLog("\nnEdges = %d\n", nEdges);
+
+	    //initialize edges
+	    //hEdge = new float[nEdges*3];
+
+	    float tmpNUM = pow(numBodies, 1./3.);
+	    float SCALE = 20;
+	    float tmpINC = (SCALE-10)/tmpNUM;
+	    int n = 0;
+	    int p = 0;
+	    bool bX = true, bY = true, bZ = true; // 1
+	    bool bZY = true, bZmY = true, bYX = true, bYmX = true, bZX = true, bZmX = true; // 2
+	    bool bmXYZ = true, bXYZ = true, bXmYZ = true, bmXmYZ = true; // 3
+
+	    for (int i = 0; i < numBodies; i++) {
+	    	for (int j = 0; j < numBodies; j++) {
+	    		/*
+	    		 * 1 = 3 kusy
+	    		 */
+	    		if ((hPos[j*4] == (hPos[i*4] + tmpINC)) && bX && (hPos[j*4+1] == hPos[i*4+1]) && (hPos[j*4+2] == hPos[i*4+2])) { // x
+	    			n++;
+
+	    			hEdge[p++] = i;
+	    			hEdge[p++] = j;
+	    			hEdge[p++] = tmpINC;
+	    			hEdge[p++] = 1.0f;
+
+	    			//shrLog("E: %d => P1: %d; P2: %d; l0: %f; Ks: %d; Kd: %d <-->", p-5, i, j, tmpInc, (int)koefKs, (int)koefKd);
+
+	    			bX = false;
+	    		}
+	    		else if ((hPos[j*4+1] == (hPos[i*4+1] + tmpINC)) && bY && (hPos[j*4] == hPos[i*4]) && (hPos[j*4+2] == hPos[i*4+2])) { // y
+	    			n++;
+
+	    			hEdge[p++] = i;
+	    			hEdge[p++] = j;
+	    			hEdge[p++] = tmpINC;
+	    			hEdge[p++] = 1.0f;
+
+	    			//shrLog("E: %d => P1: %d; P2: %d; l0: %f; Ks: %d; Kd: %d <-->", p-5, i, j, tmpInc, (int)koefKs, (int)koefKd);
+
+	    			bY = false;
+	    		}
+	    		else if ((hPos[j*4+2] == (hPos[i*4+2] + tmpINC)) && bZ && (hPos[j*4+1] == hPos[i*4+1]) && (hPos[j*4] == hPos[i*4])) { // z
+	    			n++;
+
+	    			hEdge[p++] = i;
+	    			hEdge[p++] = j;
+	    			hEdge[p++] = tmpINC;
+	    			hEdge[p++] = 1.0f;
+
+	    			//shrLog("E: %d => P1: %d; P2: %d; l0: %f; Ks: %d; Kd: %d", p-5, i, j, tmpInc, (int)koefKs, (int)koefKd);
+
+	    			bZ = false;
+	    		}
+
+	    		/*
+	    		 * 2 = 6 kusov
+	    		 */
+
+	    		else if (bZY && (hPos[j*4+2] == (hPos[i*4+2] + tmpINC)) && (hPos[j*4+1] == (hPos[i*4+1] + tmpINC)) && (hPos[j*4] == hPos[i*4])) {
+	    			n++;
+
+	    			hEdge[p++] = i;
+	    			hEdge[p++] = j;
+	    			hEdge[p++] = tmpINC*sqrt(2); // stenova uhlopriecka v kocke
+	    			hEdge[p++] = 1.0f;
+
+	    			//shrLog("E: %d => P1: %d; P2: %d; l0: %f; Ks: %d; Kd: %d <-->", p-5, i, j, tmpInc, (int)koefKs, (int)koefKd);
+
+	    			bZY = false;
+	    		}
+	    		else if (bZmY && (hPos[j*4+2] == (hPos[i*4+2] + tmpINC)) && (hPos[j*4+1] == (hPos[i*4+1] - tmpINC)) && (hPos[j*4] == hPos[i*4])) {
+	    			n++;
+
+	    			hEdge[p++] = i;
+	    			hEdge[p++] = j;
+	    			hEdge[p++] = tmpINC*sqrt(2); // stenova uhlopriecka v kocke
+	    			hEdge[p++] = 1.0f;
+
+	    			//shrLog("E: %d => P1: %d; P2: %d; l0: %f; Ks: %d; Kd: %d <-->", p-5, i, j, tmpInc, (int)koefKs, (int)koefKd);
+
+	    			bZmY = false;
+	    		}
+	    		else if (bYX && (hPos[j*4+1] == (hPos[i*4+1] + tmpINC)) && (hPos[j*4] == (hPos[i*4] + tmpINC)) && (hPos[j*4+2] == hPos[i*4+2])) {
+	    			n++;
+
+	    			hEdge[p++] = i;
+	    			hEdge[p++] = j;
+	    			hEdge[p++] = tmpINC*sqrt(2); // stenova uhlopriecka v kocke
+	    			hEdge[p++] = 1.0f;
+
+	    			//shrLog("E: %d => P1: %d; P2: %d; l0: %f; Ks: %d; Kd: %d <-->", p-5, i, j, tmpInc, (int)koefKs, (int)koefKd);
+
+	    			bYX = false;
+	    		}
+	    		else if (bYmX && (hPos[j*4+1] == (hPos[i*4+1] + tmpINC)) && (hPos[j*4] == (hPos[i*4] - tmpINC)) && (hPos[j*4+2] == hPos[i*4+2])) {
+	    			n++;
+
+	    			hEdge[p++] = i;
+	    			hEdge[p++] = j;
+	    			hEdge[p++] = tmpINC*sqrt(2); // stenova uhlopriecka v kocke
+	    			hEdge[p++] = 1.0f;
+
+	    			//shrLog("E: %d => P1: %d; P2: %d; l0: %f; Ks: %d; Kd: %d <-->", p-5, i, j, tmpInc, (int)koefKs, (int)koefKd);
+
+	    			bYmX = false;
+	    		}
+	    		else if (bZX && (hPos[j*4+2] == (hPos[i*4+2] + tmpINC)) && (hPos[j*4] == (hPos[i*4] + tmpINC)) && (hPos[j*4+1] == hPos[i*4+1])) {
+	    			n++;
+
+	    			hEdge[p++] = i;
+	    			hEdge[p++] = j;
+	    			hEdge[p++] = tmpINC*sqrt(2); // stenova uhlopriecka v kocke
+	    			hEdge[p++] = 1.0f;
+
+	    			//shrLog("E: %d => P1: %d; P2: %d; l0: %f; Ks: %d; Kd: %d <-->", p-5, i, j, tmpInc, (int)koefKs, (int)koefKd);
+
+	    			bZX = false;
+	    		}
+	    		else if (bZmX && (hPos[j*4+2] == (hPos[i*4+2] + tmpINC)) && (hPos[j*4] == (hPos[i*4] - tmpINC)) && (hPos[j*4+1] == hPos[i*4+1])) {
+	    			n++;
+
+	    			hEdge[p++] = i;
+	    			hEdge[p++] = j;
+	    			hEdge[p++] = tmpINC*sqrt(2); // stenova uhlopriecka v kocke
+	    			hEdge[p++] = 1.0f;
+
+	    			//shrLog("E: %d => P1: %d; P2: %d; l0: %f; Ks: %d; Kd: %d <-->", p-5, i, j, tmpInc, (int)koefKs, (int)koefKd);
+
+	    			bZmX = false;
+	    		}
+	    		/*
+	    		 * 3 = 4 kusy
+	    		 */
+	    		else if (bmXYZ && (hPos[j*4] == (hPos[i*4] - tmpINC)) && (hPos[j*4+1] == (hPos[i*4+1] + tmpINC)) && (hPos[j*4+2] == (hPos[i*4+2] + tmpINC))) {
+	    			n++;
+
+	    			hEdge[p++] = i;
+	    			hEdge[p++] = j;
+	    			hEdge[p++] = tmpINC*sqrt(3); // stenova uhlopriecka v kocke
+	    			hEdge[p++] = 1.0f;
+
+	    			//shrLog("E: %d => P1: %d; P2: %d; l0: %f; Ks: %d; Kd: %d <-->", p-5, i, j, tmpInc, (int)koefKs, (int)koefKd);
+
+	    			bmXYZ = false;
+	    		}
+	    		else if (bXYZ && (hPos[j*4] == (hPos[i*4] + tmpINC)) && (hPos[j*4+1] == (hPos[i*4+1] + tmpINC)) && (hPos[j*4+2] == (hPos[i*4+2] + tmpINC))) {
+	    			n++;
+
+	    			hEdge[p++] = i;
+	    			hEdge[p++] = j;
+	    			hEdge[p++] = tmpINC*sqrt(3); // stenova uhlopriecka v kocke
+	    			hEdge[p++] = 1.0f;
+
+	    			//shrLog("E: %d => P1: %d; P2: %d; l0: %f; Ks: %d; Kd: %d <-->", p-5, i, j, tmpInc, (int)koefKs, (int)koefKd);
+
+	    			bXYZ = false;
+	    		}
+	    		else if (bXmYZ && (hPos[j*4] == (hPos[i*4] + tmpINC)) && (hPos[j*4+1] == (hPos[i*4+1] - tmpINC)) && (hPos[j*4+2] == (hPos[i*4+2] + tmpINC))) {
+	    			n++;
+
+	    			hEdge[p++] = i;
+	    			hEdge[p++] = j;
+	    			hEdge[p++] = tmpINC*sqrt(3); // stenova uhlopriecka v kocke
+	    			hEdge[p++] = 1.0f;
+
+	    			//shrLog("E: %d => P1: %d; P2: %d; l0: %f; Ks: %d; Kd: %d <-->", p-5, i, j, tmpInc, (int)koefKs, (int)koefKd);
+
+	    			bXmYZ = false;
+	    		}
+	    		else if (bmXmYZ && (hPos[j*4] == (hPos[i*4] - tmpINC)) && (hPos[j*4+1] == (hPos[i*4+1] - tmpINC)) && (hPos[j*4+2] == (hPos[i*4+2] + tmpINC))) {
+	    			n++;
+
+	    			hEdge[p++] = i;
+	    			hEdge[p++] = j;
+	    			hEdge[p++] = tmpINC*sqrt(3); // stenova uhlopriecka v kocke
+	    			hEdge[p++] = 1.0f;
+
+	    			//shrLog("E: %d => P1: %d; P2: %d; l0: %f; Ks: %d; Kd: %d <-->", p-5, i, j, tmpInc, (int)koefKs, (int)koefKd);
+
+	    			bmXmYZ = false;
+	    		}
+	    	}
+	    	//shrLog("\n");
+	    	bX = true;
+	    	bY = true;
+	    	bZ = true;
+	    	bZY = true, bZmY = true, bYX = true, bYmX = true, bZX = true, bZmX = true;
+	    	bmXYZ = true, bXYZ = true, bXmYZ = true, bmXmYZ = true;
+	    }
+
+	    shrLog("\nnEdges created = %d\n", n);
+
+	    for (int i = 0; i < nEdges; i++) {
+	    	shrLog("E: %d ==> p1: %d; p2: %d; l0: %f\n", i, (int)hEdge[i*4], (int)hEdge[i*4+1], hEdge[i*4+2]);
+	    }
+
+	    system->setArray(BodySystem::BODYSYSTEM_POSITION, hPos);
+	    system->setArray(BodySystem::BODYSYSTEM_VELOCITY, hVel);
+	    system->setArray(BodySystem::BODYSYSTEM_F, hF);
+	    system->setArray(BodySystem::BODYSYSTEM_FORCES, hForces);
+	    system->setArray(BodySystem::BODYSYSTEM_EDGE, hEdge);
+	}
+
+	void InitNbody(cl_device_id dev, cl_context ctx, cl_command_queue cmdq,
+	               int numBodies, int p, int q, bool bUsePBO, bool bDouble, NBodyConfig config)
+	{
+	    // allocate host memory
+	    hPos = new float[numBodies*4];
+	    hVel = new float[numBodies*4];
+	    hF = new float[numBodies*4];
+	    hForces = new float[numBodies*4];
+	    hColor = new float[numBodies*4];
+
+	    // initalize the memory
+	    randomizeBodies(&nEdges, config, hPos, hVel, hF, hForces, hColor, m_clusterScale,
+	    		m_velocityScale, numBodies);
+
+	    float tmpNUM = pow(numBodies, 1./3.);
+	    float SCALE = 20;
+	    float tmpINC = (SCALE-10)/tmpNUM;
+	    int n = 0;
+	    bool bX = true, bY = true, bZ = true; // 1
+	    bool bZY = true, bZmY = true, bYX = true, bYmX = true, bZX = true, bZmX = true; // 2
+	    bool bmXYZ = true, bXYZ = true, bXmYZ = true, bmXmYZ = true; // 3
+
+	    for (int i = 0; i < numBodies; i++) {
+	    	for (int j = 0; j < numBodies; j++) {
+	    		/*
+	    		 * 1 = 3 kusy
+	    		 */
+	    		if ((hPos[j*4] == (hPos[i*4] + tmpINC)) && bX && (hPos[j*4+1] == hPos[i*4+1]) && (hPos[j*4+2] == hPos[i*4+2])) { // x
+	    			n++;
+	    			bX = false;
+	    		}
+	    		else if ((hPos[j*4+1] == (hPos[i*4+1] + tmpINC)) && bY && (hPos[j*4] == hPos[i*4]) && (hPos[j*4+2] == hPos[i*4+2])) { // y
+	    			n++;
+	    			bY = false;
+	    		}
+	    		else if ((hPos[j*4+2] == (hPos[i*4+2] + tmpINC)) && bZ && (hPos[j*4+1] == hPos[i*4+1]) && (hPos[j*4] == hPos[i*4])) { // z
+	    			n++;
+	    			bZ = false;
+	    		}
+
+	    		/*
+	    		 * 2 = 6 kusov
+	    		 */
+
+	    		else if (bZY && (hPos[j*4+2] == (hPos[i*4+2] + tmpINC)) && (hPos[j*4+1] == (hPos[i*4+1] + tmpINC)) && (hPos[j*4] == hPos[i*4])) {
+	    			n++;
+	    			bZY = false;
+	    		}
+	    		else if (bZmY && (hPos[j*4+2] == (hPos[i*4+2] + tmpINC)) && (hPos[j*4+1] == (hPos[i*4+1] - tmpINC)) && (hPos[j*4] == hPos[i*4])) {
+	    			n++;
+	    			bZmY = false;
+	    		}
+	    		else if (bYX && (hPos[j*4+1] == (hPos[i*4+1] + tmpINC)) && (hPos[j*4] == (hPos[i*4] + tmpINC)) && (hPos[j*4+2] == hPos[i*4+2])) {
+	    			n++;
+	    			bYX = false;
+	    		}
+	    		else if (bYmX && (hPos[j*4+1] == (hPos[i*4+1] + tmpINC)) && (hPos[j*4] == (hPos[i*4] - tmpINC)) && (hPos[j*4+2] == hPos[i*4+2])) {
+	    			n++;
+	    			bYmX = false;
+	    		}
+	    		else if (bZX && (hPos[j*4+2] == (hPos[i*4+2] + tmpINC)) && (hPos[j*4] == (hPos[i*4] + tmpINC)) && (hPos[j*4+1] == hPos[i*4+1])) {
+	    			n++;
+	    			bZX = false;
+	    		}
+	    		else if (bZmX && (hPos[j*4+2] == (hPos[i*4+2] + tmpINC)) && (hPos[j*4] == (hPos[i*4] - tmpINC)) && (hPos[j*4+1] == hPos[i*4+1])) {
+	    			n++;
+	    			bZmX = false;
+	    		}
+	    		/*
+	    		 * 3 = 4 kusy
+	    		 */
+	    		else if (bmXYZ && (hPos[j*4] == (hPos[i*4] - tmpINC)) && (hPos[j*4+1] == (hPos[i*4+1] + tmpINC)) && (hPos[j*4+2] == (hPos[i*4+2] + tmpINC))) {
+	    			n++;
+	    			bmXYZ = false;
+	    		}
+	    		else if (bXYZ && (hPos[j*4] == (hPos[i*4] + tmpINC)) && (hPos[j*4+1] == (hPos[i*4+1] + tmpINC)) && (hPos[j*4+2] == (hPos[i*4+2] + tmpINC))) {
+	    			n++;
+	    			bXYZ = false;
+	    		}
+	    		else if (bXmYZ && (hPos[j*4] == (hPos[i*4] + tmpINC)) && (hPos[j*4+1] == (hPos[i*4+1] - tmpINC)) && (hPos[j*4+2] == (hPos[i*4+2] + tmpINC))) {
+	    			n++;
+	    			bXmYZ = false;
+	    		}
+	    		else if (bmXmYZ && (hPos[j*4] == (hPos[i*4] - tmpINC)) && (hPos[j*4+1] == (hPos[i*4+1] - tmpINC)) && (hPos[j*4+2] == (hPos[i*4+2] + tmpINC))) {
+	    			n++;
+	    			bmXmYZ = false;
+	    		}
+	    	}
+	    	//shrLog("\n");
+	    	bX = true;
+	    	bY = true;
+	    	bZ = true;
+	    	bZY = true, bZmY = true, bYX = true, bYmX = true, bZX = true, bZmX = true;
+	    	bmXYZ = true, bXYZ = true, bXmYZ = true, bmXmYZ = true;
+	    }
+
+	    nEdges = n;
+
+	    hEdge = new float[nEdges*4];
+
+	    // New nbody system for Device/GPU computations
+	    nbody = new BodySystemOpenCL(numBodies, nEdges, dev, ctx, cmdq, p, q, bUsePBO, bDouble);
+
+	    // Set sim parameters
+	    nbody->setSoftening(m_softening);
+	    nbody->setDamping(m_damping);
+	}
+
+	void randomizeBodies(int *numEdges, NBodyConfig config, float* pos, float* vel, float* force, float *forces, float* color, float clusterScale, float velocityScale, int numBodies)
+	{
+		*numEdges = 0;
+
+		shrLog("\nRandomize Bodies...\n\n");
+
+		shrLog("\nNBODY_CONFIG_SHELL...\n\n");
+
+		float i, j, k;
+		//float tmpNUM = sqrt(sqrt(numBodies));
+		float tmpNUM = pow(numBodies, 1./3.);
+		float SCALE = 20;
+		float tmpINC = (SCALE-10)/tmpNUM;
+		int p=0, v=0;
+
+		for (i = 10; i < SCALE; i += tmpINC) {
+			for (j = 10; j < SCALE; j += tmpINC) {
+				for (k = 10 ; k < SCALE; k += tmpINC) {
+					shrLog("BOD - %d - x: %f; y: %f; z: %f\n", int(p/4), i, j, k);
+					force[p] = 0.0f;
+					forces[p] = 0.0f;
+					pos[p++] = i;
+					force[p] = 0.0f;
+					forces[p] = 0.0f;
+					pos[p++] = j;
+					force[p] = 0.0f;
+					forces[p] = 0.0f;
+					pos[p++] = k;
+					force[p] = 1.0f;
+					forces[p] = 0.0f;
+					pos[p++] = 1.0f;
+
+					vel[v++] = 0.0f;
+					vel[v++] = 0.0f;
+					vel[v++] = 0.0f;
+					vel[v++] = 1.0f;
+
+					*numEdges += 3;
+				}
+				*numEdges -= 1;
+			}
+			*numEdges -= (int)tmpNUM;
+		}
+		*numEdges -= ((int)tmpNUM*(int)tmpNUM);
+
+
+		force[0*4+1] = 20.0f;
+		force[1*4+1] = 20.0f;
+		force[2*4+1] = 20.0f;
+		force[9*4+1] = 20.0f;
+		force[10*4+1] = 20.0f;
+		force[11*4+1] = 20.0f;
+		force[18*4+1] = 20.0f;
+		force[19*4+1] = 20.0f;
+		force[20*4+1] = 20.0f;
+	}
 
 	void
 	openclScan(cl_mem d_voxelOccupiedScan, cl_mem d_voxelOccupied, int numVoxels) {
@@ -358,10 +807,10 @@ protected:
 		printf("grid: %d x %d x %d = %d voxels\n", gridSize[0], gridSize[1], gridSize[2], numVoxels);
 		printf("max verts = %d\n", maxVerts);
 
-		pointCnt=729;
-		cl_int points[729][4];
+		//pointCnt=729;
+		//cl_int points[729][4];
 
-		int i,j,k, pointIndex=0;
+		/*int i,j,k, pointIndex=0;
 
 		for(i=12;i<21;i+=1) {
 			for(j=12;j<21;j+=1) {
@@ -371,7 +820,7 @@ protected:
 					points[pointIndex++][2]=k;
 				}
 			}
-		}
+		}*/
 
 		// create VBOs
 		if( !bQATest) {
@@ -389,8 +838,8 @@ protected:
 		d_voxelOccupied = clCreateBuffer(cxGPUContext, CL_MEM_READ_WRITE, memSize, 0, &ciErrNum);
 		d_voxelOccupiedScan = clCreateBuffer(cxGPUContext, CL_MEM_READ_WRITE, memSize, 0, &ciErrNum);
 		d_compVoxelArray = clCreateBuffer(cxGPUContext, CL_MEM_READ_WRITE, memSize, 0, &ciErrNum);
-		d_points = clCreateBuffer(cxGPUContext, CL_MEM_READ_WRITE, sizeof(cl_int)*4*pointCnt, &points, &ciErrNum);
-		clEnqueueWriteBuffer(cqCommandQueue , d_points, CL_TRUE, 0, sizeof(cl_int)*4*pointCnt, &points, 0, 0, 0);
+		//d_points = clCreateBuffer(cxGPUContext, CL_MEM_READ_WRITE, sizeof(cl_int)*4*pointCnt, &points, &ciErrNum);
+		//clEnqueueWriteBuffer(cqCommandQueue , d_points, CL_TRUE, 0, sizeof(cl_int)*4*pointCnt, &points, 0, 0, 0);
 	}
 
 	void initCL() {
@@ -520,7 +969,7 @@ protected:
 
 		// calculate number of vertices need per voxel
 		launch_classifyVoxel(grid, threads,
-							d_voxelVerts, d_voxelOccupied, d_points, pointCnt,
+							d_voxelVerts, d_voxelOccupied, nbody->getPos(), 27,
 							gridSize, gridSizeShift, gridSizeMask,
 							 numVoxels, voxelSize, isoValue);
 
@@ -538,6 +987,7 @@ protected:
 
 			activeVoxels = lastElement + lastScanElement;
 		}
+		//printf("activeVoxels = %d\n", activeVoxels);
 
 		if (activeVoxels==0) {
 			// return if there are no full voxels
@@ -545,7 +995,6 @@ protected:
 			return;
 		}
 
-		//printf("activeVoxels = %d\n", activeVoxels);
 
 		// compact voxel index array
 		launch_compactVoxels(grid, threads, d_compVoxelArray, d_voxelOccupied, d_voxelOccupiedScan, numVoxels);
@@ -585,7 +1034,7 @@ protected:
 		}
 		launch_generateTriangles2(grid2, NTHREADS, d_pos, d_normal,
 												d_compVoxelArray,
-												d_voxelVertsScan, d_points, pointCnt,
+												d_voxelVertsScan, nbody->getPos(), 27,
 												gridSize, gridSizeShift, gridSizeMask,
 												voxelSize, isoValue, activeVoxels,
 								  maxVerts);

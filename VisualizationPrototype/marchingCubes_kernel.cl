@@ -32,7 +32,7 @@ int4 calcGridPos(uint i, uint4 gridSizeShift, uint4 gridSizeMask)
     return gridPos;
 }
 
-float calcFieldValue(__global int4 *points, int4 gridPos, uint count)
+float calcFieldValue(__global float4 *points, int4 gridPos, uint count)
 {
 	int i;
 	float sum=0;
@@ -48,7 +48,7 @@ float calcFieldValue(__global int4 *points, int4 gridPos, uint count)
 // one thread per voxel
 __kernel
 void
-classifyVoxel(__global uint* voxelVerts, __global uint *voxelOccupied, __global int4 *points,
+classifyVoxel(__global uint* voxelVerts, __global uint *voxelOccupied, __global float4 *points,
               uint4 gridSize, uint4 gridSizeShift, uint4 gridSizeMask, uint numVoxels,
               float4 voxelSize, float isoValue,  __read_only image2d_t numVertsTex, uint pointCnt)
 {
@@ -136,7 +136,7 @@ float4 calcNormal(float4 v0, float4 v1, float4 v2)
 __kernel
 void
 generateTriangles2(__global float4 *pos, __global float *norm, __global uint *compactedVoxelArray, __global uint *numVertsScanned, 
-                   __global int4 *points,
+                   __global float4 *points,
                    uint4 gridSize, uint4 gridSizeShift, uint4 gridSizeMask,
                    float4 voxelSize, float isoValue, uint activeVoxels, uint maxVerts, 
                    __read_only image2d_t numVertsTex, __read_only image2d_t triTex, uint pointCnt)
