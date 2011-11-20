@@ -86,7 +86,7 @@ public:
 		activeVoxels = 0;
 		totalVerts   = 0;
 
-		isoValue		= 0.9f;
+		isoValue		= 2.0f;
 		dIsoValue		= 0.005f;
 
 		d_pos = 0;
@@ -129,7 +129,7 @@ public:
 		hEdge = 0; // array of all edges
 		nEdges =0;
 
-		m_timestep=0.015f;
+		m_timestep=0.02f;
 		m_clusterScale=1.54f;
 		m_velocityScale=1.0f;
 		m_softening=0.1f;
@@ -325,8 +325,8 @@ protected:
 	    //hEdge = new float[nEdges*3];
 
 	    float tmpNUM = pow(numBodies, 1./3.);
-	    float SCALE = 20;
-	    float tmpINC = (SCALE-10)/tmpNUM;
+	    float SCALE = 5;
+	    float tmpINC = (SCALE)/tmpNUM;
 	    int n = 0;
 	    int p = 0;
 	    bool bX = true, bY = true, bZ = true; // 1
@@ -539,8 +539,8 @@ protected:
 	    		m_velocityScale, numBodies);
 
 	    float tmpNUM = pow(numBodies, 1./3.);
-	    float SCALE = 20;
-	    float tmpINC = (SCALE-10)/tmpNUM;
+	    float SCALE = 5;
+	    float tmpINC = (SCALE)/tmpNUM;
 	    int n = 0;
 	    bool bX = true, bY = true, bZ = true; // 1
 	    bool bZY = true, bZmY = true, bYX = true, bYmX = true, bZX = true, bZmX = true; // 2
@@ -643,13 +643,13 @@ protected:
 		float i, j, k;
 		//float tmpNUM = sqrt(sqrt(numBodies));
 		float tmpNUM = pow(numBodies, 1./3.);
-		float SCALE = 20;
-		float tmpINC = (SCALE-10)/tmpNUM;
+		float SCALE = 5;
+		float tmpINC = (SCALE)/tmpNUM;
 		int p=0, v=0;
 
-		for (i = 10; i < SCALE; i += tmpINC) {
-			for (j = 10; j < SCALE; j += tmpINC) {
-				for (k = 10 ; k < SCALE; k += tmpINC) {
+		for (i = 10; i < SCALE+10; i += tmpINC) {
+			for (j = 10; j < SCALE+10; j += tmpINC) {
+				for (k = 10 ; k < SCALE+10; k += tmpINC) {
 					shrLog("BOD - %d - x: %f; y: %f; z: %f\n", int(p/4), i, j, k);
 					force[p] = 0.0f;
 					forces[p] = 0.0f;
@@ -678,15 +678,15 @@ protected:
 		*numEdges -= ((int)tmpNUM*(int)tmpNUM);
 
 
-		force[0*4+1] = 20.0f;
-		force[1*4+1] = 20.0f;
-		force[2*4+1] = 20.0f;
-		force[9*4+1] = 20.0f;
-		force[10*4+1] = 20.0f;
-		force[11*4+1] = 20.0f;
-		force[18*4+1] = 20.0f;
-		force[19*4+1] = 20.0f;
-		force[20*4+1] = 20.0f;
+		force[6*4+1] = 20.0f;
+		force[7*4+1] = 20.0f;
+		force[8*4+1] = 20.0f;
+		force[15*4+1] = 20.0f;
+		force[16*4+1] = 20.0f;
+		force[17*4+1] = 20.0f;
+		force[24*4+1] = 20.0f;
+		force[25*4+1] = 20.0f;
+		force[26*4+1] = 20.0f;
 	}
 
 	void

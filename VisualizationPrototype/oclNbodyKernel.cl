@@ -47,7 +47,7 @@
     
     // predpokladame, ze mass castice je 1, G je 9.823
     Fg.x = 0;
-    Fg.y = -9.82300;
+    Fg.y = /*-9.82300*/0;
     Fg.z = 0;
 	
 	return Fg;
@@ -149,7 +149,7 @@ REAL3 getFc(int numBodies, REAL4 Fc) {
     
     unsigned int index = mul24(blockIdxx, blockDimx) + threadIdxx;
     
-    REAL Ks = 100;
+    REAL Ks = 20;
    
    	REAL restL = oldEdges[index].z;
    

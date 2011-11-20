@@ -200,11 +200,6 @@ void BodySystemOpenCL::update(float deltaTime)
     			m_numBodies, m_p, m_q,
     			1);
 
-    float *f = getArray(BODYSYSTEM_F);
-
-    shrLog("\nFF: %f\n", f[1]);
-
-
     std::swap(m_currentRead, m_currentWrite);
 }
 
