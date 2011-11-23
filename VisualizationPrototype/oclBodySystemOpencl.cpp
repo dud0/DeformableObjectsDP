@@ -23,6 +23,7 @@ BodySystemOpenCL::BodySystemOpenCL(int numBodies, int numEdges, cl_device_id dev
   m_q(q),
   m_bDouble(bDouble)
 {
+	t=0;
     m_dPos[0] = m_dPos[1] = 0;
     m_dVel[0] = m_dVel[1] = 0;
     m_dF[0] = m_dF[1] = 0;
@@ -165,7 +166,132 @@ void BodySystemOpenCL::setDamping(float damping)
 
 void BodySystemOpenCL::update(float deltaTime)
 {
+	t++;
 	bool cont = true;
+
+	if (t == 200) {
+		tmpF = getArray(BODYSYSTEM_F);
+		for(int i=0; i<m_numBodies*4; i++) {
+			tmpF[i] = 0;
+		}
+		setArray(BODYSYSTEM_F, tmpF);
+	}
+
+	else if (t == 400) {
+		tmpF = getArray(BODYSYSTEM_F);
+		for(int i=0; i<m_numBodies*4; i++) {
+			tmpF[i] = 0;
+		}
+		tmpF[0*4+1] = -30.0f;
+		tmpF[1*4+1] = -30.0f;
+		tmpF[2*4+1] = -30.0f;
+		tmpF[9*4+1] = -30.0f;
+		tmpF[10*4+1] = -30.0f;
+		tmpF[11*4+1] = -30.0f;
+		tmpF[18*4+1] = -30.0f;
+		tmpF[19*4+1] = -30.0f;
+		tmpF[20*4+1] = -30.0f;
+		setArray(BODYSYSTEM_F, tmpF);
+	}
+
+	else if (t == 700) {
+		tmpF = getArray(BODYSYSTEM_F);
+		for(int i=0; i<m_numBodies*4; i++) {
+			tmpF[i] = 0;
+		}
+		setArray(BODYSYSTEM_F, tmpF);
+	}
+
+	else if (t == 900) {
+		tmpF = getArray(BODYSYSTEM_F);
+		for(int i=0; i<m_numBodies*4; i++) {
+			tmpF[i] = 0;
+		}
+		tmpF[6*4+1] = 30.0f;
+		tmpF[7*4+1] = 30.0f;
+		tmpF[8*4+1] = 30.0f;
+		tmpF[15*4+1] = 30.0f;
+		tmpF[16*4+1] = 30.0f;
+		tmpF[17*4+1] = 30.0f;
+		tmpF[24*4+1] = 30.0f;
+		tmpF[25*4+1] = 30.0f;
+		tmpF[26*4+1] = 30.0f;
+		setArray(BODYSYSTEM_F, tmpF);
+	}
+
+	else if (t == 1100) {
+		tmpF = getArray(BODYSYSTEM_F);
+		for(int i=0; i<m_numBodies*4; i++) {
+			tmpF[i] = 0;
+		}
+		setArray(BODYSYSTEM_F, tmpF);
+	}
+
+	else if (t == 1250) {
+		tmpF = getArray(BODYSYSTEM_F);
+		for(int i=0; i<m_numBodies*4; i++) {
+			tmpF[i] = 0;
+		}
+		tmpF[18*4] = 30.0f;
+		tmpF[19*4] = 30.0f;
+		tmpF[20*4] = 30.0f;
+		tmpF[21*4] = 30.0f;
+		tmpF[22*4] = 30.0f;
+		tmpF[23*4] = 30.0f;
+		tmpF[24*4] = 30.0f;
+		tmpF[25*4] = 30.0f;
+		tmpF[26*4] = 30.0f;
+		setArray(BODYSYSTEM_F, tmpF);
+	}
+
+	else if (t == 1500) {
+		tmpF = getArray(BODYSYSTEM_F);
+		for(int i=0; i<m_numBodies*4; i++) {
+			tmpF[i] = 0;
+		}
+		setArray(BODYSYSTEM_F, tmpF);
+	}
+
+	else if (t == 1650) {
+		tmpF = getArray(BODYSYSTEM_F);
+		for(int i=0; i<m_numBodies*4; i++) {
+			tmpF[i] = 0;
+		}
+		tmpF[0*4] = -30.0f;
+		tmpF[1*4] = -30.0f;
+		tmpF[2*4] = -30.0f;
+		tmpF[3*4] = -30.0f;
+		tmpF[4*4] = -30.0f;
+		tmpF[5*4] = -30.0f;
+		tmpF[6*4] = -30.0f;
+		tmpF[7*4] = -30.0f;
+		tmpF[8*4] = -30.0f;
+		setArray(BODYSYSTEM_F, tmpF);
+	}
+
+	else if (t == 1850) {
+		tmpF = getArray(BODYSYSTEM_F);
+		for(int i=0; i<m_numBodies*4; i++) {
+			tmpF[i] = 0;
+		}
+		setArray(BODYSYSTEM_F, tmpF);
+	}
+
+	else if (t == 2000) {
+		tmpF = getArray(BODYSYSTEM_F);
+		for(int i=0; i<m_numBodies*4; i++) {
+			tmpF[i] = 0;
+		}
+		tmpF[24*4] = 30.0f;
+		tmpF[25*4] = 30.0f;
+		tmpF[26*4] = 30.0f;
+		tmpF[24*4+1] = 30.0f;
+		tmpF[25*4+1] = 30.0f;
+		tmpF[26*4+1] = 30.0f;
+		setArray(BODYSYSTEM_F, tmpF);
+	}
+
+	fprintf(stdout, "%d\n",t);
 
     oclCheckError(m_bInitialized, shrTRUE);
 

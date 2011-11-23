@@ -75,6 +75,10 @@ class BodySystemOpenCL : public BodySystem
         float* m_hEdge;
         float* m_hForces;
 
+        float* tmpF;
+
+        long t;
+
         // GPU data
         cl_mem m_dPos[2];
         cl_mem m_dVel[2];

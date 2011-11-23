@@ -225,7 +225,6 @@ protected:
 	float m_pointSize;
 	float m_x, m_y, m_z;
 
-
 	//--
 
 	cl_platform_id cpPlatform;
@@ -687,6 +686,7 @@ protected:
 		force[24*4+1] = 20.0f;
 		force[25*4+1] = 20.0f;
 		force[26*4+1] = 20.0f;
+
 	}
 
 	void
