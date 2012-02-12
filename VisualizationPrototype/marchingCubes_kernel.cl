@@ -32,14 +32,48 @@ int4 calcGridPos(uint i, uint4 gridSizeShift, uint4 gridSizeMask)
     return gridPos;
 }
 
-float calcFieldValue(__global float4 *points, int4 gridPos, uint count)
+float calcPointContribution(float4 point, int4 gridPos, float radius)
+{
+	float distSqr;
+
+	distSqr = (pow((float)(point.x-gridPos.x), 2.0f) + pow((float)(point.y-gridPos.y), 2.0f) + pow((float)(point.z-gridPos.z), 2.0f));
+
+	if (distSqr>pow(radius, 2.0f)) 
+	{
+		return 0.0f;
+	}
+	else
+	{
+		return (- 0.444444f * pow(distSqr,3.0f) / pow(radius, 6.0f)) + (1.888889f * pow(distSqr,2.0f) / pow(radius, 4.0f)) - (2.444444f * distSqr / pow(radius, 2.0f)) + 1;
+	}	
+}
+
+float calcFieldValue(__global float4 *points, int4 gridPos, uint count, float radius)
 {
 	int i;
 	float sum=0;
+
+	float4 gridPoint;
+
+	gridPoint.x = (float)gridPos.x;
+	gridPoint.y = (float)gridPos.y;
+	gridPoint.z = (float)gridPos.z;
+
+	float4 minPoint, maxPoint;
+
+	minPoint.x = gridPos.x - radius;
+	minPoint.y = gridPos.y - radius;
+	minPoint.z = gridPos.z - radius;
+
+	maxPoint.x = gridPos.x + radius;
+	maxPoint.y = gridPos.y + radius;
+	maxPoint.z = gridPos.z + radius;	
+
 	for (i=0;i<count;i++)
 	{
-		sum+=1.0f/(pow((float)(points[i].x-gridPos.x),(float)2)+pow((float)(points[i].y-gridPos.y),(float)2)+pow((float)(points[i].z-gridPos.z),(float)2));
-		
+		if (points[i].x>=minPoint.x && points[i].y>=minPoint.y && points[i].z>=minPoint.z && points[i].x<=maxPoint.x && points[i].y<=maxPoint.y && points[i].z<=maxPoint.z) {
+			sum+=calcPointContribution(points[i], gridPos, radius);
+		}		
 	}
 	return sum;
 }
@@ -50,7 +84,7 @@ __kernel
 void
 classifyVoxel(__global uint* voxelVerts, __global uint *voxelOccupied, __global float4 *points,
               uint4 gridSize, uint4 gridSizeShift, uint4 gridSizeMask, uint numVoxels,
-              float4 voxelSize, float isoValue,  __read_only image2d_t numVertsTex, uint pointCnt)
+              float4 voxelSize, float isoValue,  __read_only image2d_t numVertsTex, uint pointCnt, float radius)
 {
     uint blockId = get_group_id(0);
     uint i = get_global_id(0);
@@ -59,14 +93,14 @@ classifyVoxel(__global uint* voxelVerts, __global uint *voxelOccupied, __global 
 
     // read field values at neighbouring grid vertices
     float field[8];
-    field[0] = calcFieldValue(points, gridPos, pointCnt);
-    field[1] = calcFieldValue(points, gridPos + (int4)(1, 0, 0 ,0), pointCnt);
-    field[2] = calcFieldValue(points, gridPos + (int4)(1, 1, 0 ,0), pointCnt);
-    field[3] = calcFieldValue(points, gridPos + (int4)(0, 1, 0 ,0), pointCnt);
-    field[4] = calcFieldValue(points, gridPos + (int4)(0, 0, 1 ,0), pointCnt);
-    field[5] = calcFieldValue(points, gridPos + (int4)(1, 0, 1 ,0), pointCnt);
-    field[6] = calcFieldValue(points, gridPos + (int4)(1, 1, 1 ,0), pointCnt);
-    field[7] = calcFieldValue(points, gridPos + (int4)(0, 1, 1 ,0), pointCnt);
+    field[0] = calcFieldValue(points, gridPos, pointCnt, radius);
+    field[1] = calcFieldValue(points, gridPos + (int4)(1, 0, 0 ,0), pointCnt, radius);
+    field[2] = calcFieldValue(points, gridPos + (int4)(1, 1, 0 ,0), pointCnt, radius);
+    field[3] = calcFieldValue(points, gridPos + (int4)(0, 1, 0 ,0), pointCnt, radius);
+    field[4] = calcFieldValue(points, gridPos + (int4)(0, 0, 1 ,0), pointCnt, radius);
+    field[5] = calcFieldValue(points, gridPos + (int4)(1, 0, 1 ,0), pointCnt, radius);
+    field[6] = calcFieldValue(points, gridPos + (int4)(1, 1, 1 ,0), pointCnt, radius);
+    field[7] = calcFieldValue(points, gridPos + (int4)(0, 1, 1 ,0), pointCnt, radius);
 
     // calculate flag indicating if each vertex is inside or outside isosurface
     int cubeindex;
@@ -139,7 +173,7 @@ generateTriangles2(__global float4 *pos, __global float *norm, __global uint *co
                    __global float4 *points,
                    uint4 gridSize, uint4 gridSizeShift, uint4 gridSizeMask,
                    float4 voxelSize, float isoValue, uint activeVoxels, uint maxVerts, 
-                   __read_only image2d_t numVertsTex, __read_only image2d_t triTex, uint pointCnt)
+                   __read_only image2d_t numVertsTex, __read_only image2d_t triTex, uint pointCnt, float radius)
 {
     uint i = get_global_id(0);
     uint tid = get_local_id(0);
@@ -171,14 +205,14 @@ generateTriangles2(__global float4 *pos, __global float *norm, __global uint *co
     v[7] = p + (float4)(0, voxelSize.y, voxelSize.z,0);
 
     float field[8];
-    field[0] = calcFieldValue(points, gridPos, pointCnt);
-    field[1] = calcFieldValue(points, gridPos + (int4)(1, 0, 0 ,0), pointCnt);
-    field[2] = calcFieldValue(points, gridPos + (int4)(1, 1, 0 ,0), pointCnt);
-    field[3] = calcFieldValue(points, gridPos + (int4)(0, 1, 0 ,0), pointCnt);
-    field[4] = calcFieldValue(points, gridPos + (int4)(0, 0, 1 ,0), pointCnt);
-    field[5] = calcFieldValue(points, gridPos + (int4)(1, 0, 1 ,0), pointCnt);
-    field[6] = calcFieldValue(points, gridPos + (int4)(1, 1, 1 ,0), pointCnt);
-    field[7] = calcFieldValue(points, gridPos + (int4)(0, 1, 1 ,0), pointCnt);
+    field[0] = calcFieldValue(points, gridPos, pointCnt, radius);
+    field[1] = calcFieldValue(points, gridPos + (int4)(1, 0, 0 ,0), pointCnt, radius);
+    field[2] = calcFieldValue(points, gridPos + (int4)(1, 1, 0 ,0), pointCnt, radius);
+    field[3] = calcFieldValue(points, gridPos + (int4)(0, 1, 0 ,0), pointCnt, radius);
+    field[4] = calcFieldValue(points, gridPos + (int4)(0, 0, 1 ,0), pointCnt, radius);
+    field[5] = calcFieldValue(points, gridPos + (int4)(1, 0, 1 ,0), pointCnt, radius);
+    field[6] = calcFieldValue(points, gridPos + (int4)(1, 1, 1 ,0), pointCnt, radius);
+    field[7] = calcFieldValue(points, gridPos + (int4)(0, 1, 1 ,0), pointCnt, radius);
 
     // recalculate flag
     int cubeindex;

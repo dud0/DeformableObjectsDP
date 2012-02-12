@@ -86,8 +86,9 @@ public:
 		activeVoxels = 0;
 		totalVerts   = 0;
 
-		isoValue		= 2.0f;
-		dIsoValue		= 0.005f;
+		radius = 2.5f;
+		isoValue = 0.2f;
+		dIsoValue = 0.005f;
 
 		d_pos = 0;
 		d_normal = 0;
@@ -268,6 +269,7 @@ protected:
 	uint activeVoxels;
 	uint totalVerts;
 
+	cl_float radius;
 	float isoValue;
 	float dIsoValue;
 
@@ -702,7 +704,7 @@ protected:
 	void
 	launch_classifyVoxel( dim3 grid, dim3 threads, cl_mem voxelVerts, cl_mem voxelOccupied, cl_mem points, cl_uint pointCnt,
 						  cl_uint gridSize[4], cl_uint gridSizeShift[4], cl_uint gridSizeMask[4], uint numVoxels,
-						  cl_float voxelSize[4], float isoValue)
+						  cl_float voxelSize[4], float isoValue, cl_float radius)
 	{
 		ciErrNum = clSetKernelArg(classifyVoxelKernel, 0, sizeof(cl_mem), &voxelVerts);
 		ciErrNum = clSetKernelArg(classifyVoxelKernel, 1, sizeof(cl_mem), &voxelOccupied);
@@ -715,6 +717,7 @@ protected:
 		ciErrNum = clSetKernelArg(classifyVoxelKernel, 8, sizeof(float), &isoValue);
 		ciErrNum = clSetKernelArg(classifyVoxelKernel, 9, sizeof(cl_mem), &d_numVertsTable);
 		ciErrNum = clSetKernelArg(classifyVoxelKernel, 10, sizeof(cl_uint), &pointCnt);
+		ciErrNum = clSetKernelArg(classifyVoxelKernel, 11, sizeof(cl_float), &radius);
 
 		grid.x *= threads.x;
 		ciErrNum = clEnqueueNDRangeKernel(cqCommandQueue, classifyVoxelKernel, 1, NULL, (size_t*) &grid, (size_t*) &threads, 0, 0, 0);
@@ -734,7 +737,7 @@ protected:
 
 	void
 	launch_generateTriangles2(dim3 grid, dim3 threads,
-							  cl_mem pos, cl_mem norm, cl_mem compactedVoxelArray, cl_mem numVertsScanned, cl_mem points, cl_uint pointCnt,
+							  cl_mem pos, cl_mem norm, cl_mem compactedVoxelArray, cl_mem numVertsScanned, cl_mem points, cl_uint pointCnt, cl_float radius,
 							  cl_uint gridSize[4], cl_uint gridSizeShift[4], cl_uint gridSizeMask[4],
 							  cl_float voxelSize[4], float isoValue, uint activeVoxels, uint maxVerts)
 	{
@@ -753,6 +756,7 @@ protected:
 		ciErrNum = clSetKernelArg(generateTriangles2Kernel, 12, sizeof(cl_mem), &d_numVertsTable);
 		ciErrNum = clSetKernelArg(generateTriangles2Kernel, 13, sizeof(cl_mem), &d_triTable);
 		ciErrNum = clSetKernelArg(generateTriangles2Kernel, 14, sizeof(cl_uint), &pointCnt);
+		ciErrNum = clSetKernelArg(generateTriangles2Kernel, 15, sizeof(cl_float), &radius);
 
 		grid.x *= threads.x;
 		ciErrNum = clEnqueueNDRangeKernel(cqCommandQueue, generateTriangles2Kernel, 1, NULL, (size_t*) &grid, (size_t*) &threads, 0, 0, 0);
@@ -971,7 +975,7 @@ protected:
 		launch_classifyVoxel(grid, threads,
 							d_voxelVerts, d_voxelOccupied, nbody->getPos(), 27,
 							gridSize, gridSizeShift, gridSizeMask,
-							 numVoxels, voxelSize, isoValue);
+							 numVoxels, voxelSize, isoValue, radius);
 
 		// scan voxel occupied array
 		openclScan(d_voxelOccupiedScan, d_voxelOccupied, numVoxels);
@@ -1034,7 +1038,7 @@ protected:
 		}
 		launch_generateTriangles2(grid2, NTHREADS, d_pos, d_normal,
 												d_compVoxelArray,
-												d_voxelVertsScan, nbody->getPos(), 27,
+												d_voxelVertsScan, nbody->getPos(), 27, radius,
 												gridSize, gridSizeShift, gridSizeMask,
 												voxelSize, isoValue, activeVoxels,
 								  maxVerts);
