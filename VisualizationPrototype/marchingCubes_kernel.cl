@@ -48,16 +48,16 @@ float calcPointContribution(float4 point, int4 gridPos, float radius)
 	}	
 }
 
-float calcFieldValue(__global float4 *points, int4 gridPos, uint count, float radius)
+__kernel
+void
+calcFieldValue(__global float *volumeData, __global float4 *points, uint count, float radius, uint4 gridSizeShift, uint4 gridSizeMask)
 {
+	uint index = get_global_id(0);
+
+	int4 gridPos = calcGridPos(index, gridSizeShift, gridSizeMask);
+
 	int i;
 	float sum=0;
-
-	float4 gridPoint;
-
-	gridPoint.x = (float)gridPos.x;
-	gridPoint.y = (float)gridPos.y;
-	gridPoint.z = (float)gridPos.z;
 
 	float4 minPoint, maxPoint;
 
@@ -75,16 +75,22 @@ float calcFieldValue(__global float4 *points, int4 gridPos, uint count, float ra
 			sum+=calcPointContribution(points[i], gridPos, radius);
 		}		
 	}
-	return sum;
+
+	volumeData[index]=sum;
+}
+
+float getFieldValue(__global float *volumeData, int4 gridPos, uint4 gridSizeShift) {
+	uint index = gridPos.x | (gridPos.y << gridSizeShift.y) | (gridPos.z << gridSizeShift.z);
+	return volumeData[index];
 }
 
 // classify voxel based on number of vertices it will generate
 // one thread per voxel
 __kernel
 void
-classifyVoxel(__global uint* voxelVerts, __global uint *voxelOccupied, __global float4 *points,
+classifyVoxel(__global uint* voxelVerts, __global uint *voxelOccupied, __global float *volumeData,
               uint4 gridSize, uint4 gridSizeShift, uint4 gridSizeMask, uint numVoxels,
-              float4 voxelSize, float isoValue,  __read_only image2d_t numVertsTex, uint pointCnt, float radius)
+              float4 voxelSize, float isoValue,  __read_only image2d_t numVertsTex)
 {
     uint blockId = get_group_id(0);
     uint i = get_global_id(0);
@@ -93,14 +99,14 @@ classifyVoxel(__global uint* voxelVerts, __global uint *voxelOccupied, __global 
 
     // read field values at neighbouring grid vertices
     float field[8];
-    field[0] = calcFieldValue(points, gridPos, pointCnt, radius);
-    field[1] = calcFieldValue(points, gridPos + (int4)(1, 0, 0 ,0), pointCnt, radius);
-    field[2] = calcFieldValue(points, gridPos + (int4)(1, 1, 0 ,0), pointCnt, radius);
-    field[3] = calcFieldValue(points, gridPos + (int4)(0, 1, 0 ,0), pointCnt, radius);
-    field[4] = calcFieldValue(points, gridPos + (int4)(0, 0, 1 ,0), pointCnt, radius);
-    field[5] = calcFieldValue(points, gridPos + (int4)(1, 0, 1 ,0), pointCnt, radius);
-    field[6] = calcFieldValue(points, gridPos + (int4)(1, 1, 1 ,0), pointCnt, radius);
-    field[7] = calcFieldValue(points, gridPos + (int4)(0, 1, 1 ,0), pointCnt, radius);
+    field[0] = getFieldValue(volumeData, gridPos, gridSizeShift);
+    field[1] = getFieldValue(volumeData, gridPos + (int4)(1, 0, 0 ,0), gridSizeShift);
+    field[2] = getFieldValue(volumeData, gridPos + (int4)(1, 1, 0 ,0), gridSizeShift);
+    field[3] = getFieldValue(volumeData, gridPos + (int4)(0, 1, 0 ,0), gridSizeShift);
+    field[4] = getFieldValue(volumeData, gridPos + (int4)(0, 0, 1 ,0), gridSizeShift);
+    field[5] = getFieldValue(volumeData, gridPos + (int4)(1, 0, 1 ,0), gridSizeShift);
+    field[6] = getFieldValue(volumeData, gridPos + (int4)(1, 1, 1 ,0), gridSizeShift);
+    field[7] = getFieldValue(volumeData, gridPos + (int4)(0, 1, 1 ,0), gridSizeShift);
 
     // calculate flag indicating if each vertex is inside or outside isosurface
     int cubeindex;
@@ -170,10 +176,10 @@ float4 calcNormal(float4 v0, float4 v1, float4 v2)
 __kernel
 void
 generateTriangles2(__global float4 *pos, __global float *norm, __global uint *compactedVoxelArray, __global uint *numVertsScanned, 
-                   __global float4 *points,
+                   __global float *volumeData,
                    uint4 gridSize, uint4 gridSizeShift, uint4 gridSizeMask,
                    float4 voxelSize, float isoValue, uint activeVoxels, uint maxVerts, 
-                   __read_only image2d_t numVertsTex, __read_only image2d_t triTex, uint pointCnt, float radius)
+                   __read_only image2d_t numVertsTex, __read_only image2d_t triTex)
 {
     uint i = get_global_id(0);
     uint tid = get_local_id(0);
@@ -205,14 +211,14 @@ generateTriangles2(__global float4 *pos, __global float *norm, __global uint *co
     v[7] = p + (float4)(0, voxelSize.y, voxelSize.z,0);
 
     float field[8];
-    field[0] = calcFieldValue(points, gridPos, pointCnt, radius);
-    field[1] = calcFieldValue(points, gridPos + (int4)(1, 0, 0 ,0), pointCnt, radius);
-    field[2] = calcFieldValue(points, gridPos + (int4)(1, 1, 0 ,0), pointCnt, radius);
-    field[3] = calcFieldValue(points, gridPos + (int4)(0, 1, 0 ,0), pointCnt, radius);
-    field[4] = calcFieldValue(points, gridPos + (int4)(0, 0, 1 ,0), pointCnt, radius);
-    field[5] = calcFieldValue(points, gridPos + (int4)(1, 0, 1 ,0), pointCnt, radius);
-    field[6] = calcFieldValue(points, gridPos + (int4)(1, 1, 1 ,0), pointCnt, radius);
-    field[7] = calcFieldValue(points, gridPos + (int4)(0, 1, 1 ,0), pointCnt, radius);
+    field[0] = getFieldValue(volumeData, gridPos, gridSizeShift);
+    field[1] = getFieldValue(volumeData, gridPos + (int4)(1, 0, 0 ,0), gridSizeShift);
+    field[2] = getFieldValue(volumeData, gridPos + (int4)(1, 1, 0 ,0), gridSizeShift);
+    field[3] = getFieldValue(volumeData, gridPos + (int4)(0, 1, 0 ,0), gridSizeShift);
+    field[4] = getFieldValue(volumeData, gridPos + (int4)(0, 0, 1 ,0), gridSizeShift);
+    field[5] = getFieldValue(volumeData, gridPos + (int4)(1, 0, 1 ,0), gridSizeShift);
+    field[6] = getFieldValue(volumeData, gridPos + (int4)(1, 1, 1 ,0), gridSizeShift);
+    field[7] = getFieldValue(volumeData, gridPos + (int4)(0, 1, 1 ,0), gridSizeShift);
 
     // recalculate flag
     int cubeindex;
@@ -229,17 +235,17 @@ generateTriangles2(__global float4 *pos, __global float *norm, __global uint *co
 	__local float4 vertlist[16*NTHREADS];
 
 	vertlist[tid] = vertexInterp(isoValue, v[0], v[1], field[0], field[1]);
-    vertlist[NTHREADS+tid] = vertexInterp(isoValue, v[1], v[2], field[1], field[2]);
-    vertlist[(NTHREADS*2)+tid] = vertexInterp(isoValue, v[2], v[3], field[2], field[3]);
-    vertlist[(NTHREADS*3)+tid] = vertexInterp(isoValue, v[3], v[0], field[3], field[0]);
+	vertlist[NTHREADS+tid] = vertexInterp(isoValue, v[1], v[2], field[1], field[2]);
+	vertlist[(NTHREADS*2)+tid] = vertexInterp(isoValue, v[2], v[3], field[2], field[3]);
+	vertlist[(NTHREADS*3)+tid] = vertexInterp(isoValue, v[3], v[0], field[3], field[0]);
 	vertlist[(NTHREADS*4)+tid] = vertexInterp(isoValue, v[4], v[5], field[4], field[5]);
-    vertlist[(NTHREADS*5)+tid] = vertexInterp(isoValue, v[5], v[6], field[5], field[6]);
-    vertlist[(NTHREADS*6)+tid] = vertexInterp(isoValue, v[6], v[7], field[6], field[7]);
-    vertlist[(NTHREADS*7)+tid] = vertexInterp(isoValue, v[7], v[4], field[7], field[4]);
+	vertlist[(NTHREADS*5)+tid] = vertexInterp(isoValue, v[5], v[6], field[5], field[6]);
+	vertlist[(NTHREADS*6)+tid] = vertexInterp(isoValue, v[6], v[7], field[6], field[7]);
+	vertlist[(NTHREADS*7)+tid] = vertexInterp(isoValue, v[7], v[4], field[7], field[4]);
 	vertlist[(NTHREADS*8)+tid] = vertexInterp(isoValue, v[0], v[4], field[0], field[4]);
-    vertlist[(NTHREADS*9)+tid] = vertexInterp(isoValue, v[1], v[5], field[1], field[5]);
-    vertlist[(NTHREADS*10)+tid] = vertexInterp(isoValue, v[2], v[6], field[2], field[6]);
-    vertlist[(NTHREADS*11)+tid] = vertexInterp(isoValue, v[3], v[7], field[3], field[7]);
+	vertlist[(NTHREADS*9)+tid] = vertexInterp(isoValue, v[1], v[5], field[1], field[5]);
+	vertlist[(NTHREADS*10)+tid] = vertexInterp(isoValue, v[2], v[6], field[2], field[6]);
+	vertlist[(NTHREADS*11)+tid] = vertexInterp(isoValue, v[3], v[7], field[3], field[7]);
     barrier(CLK_LOCAL_MEM_FENCE);
 
     // output triangle vertices
