@@ -52,7 +52,7 @@ __kernel
 void
 calcFieldValue(__global float *volumeData, __global float4 *points, uint count, float radius, uint4 gridSizeShift, uint4 gridSizeMask)
 {
-	uint index = get_global_id(0);
+	int index = get_global_id(0);
 
 	int4 gridPos = calcGridPos(index, gridSizeShift, gridSizeMask);
 
@@ -80,7 +80,7 @@ calcFieldValue(__global float *volumeData, __global float4 *points, uint count, 
 }
 
 float getFieldValue(__global float *volumeData, int4 gridPos, uint4 gridSizeShift) {
-	uint index = gridPos.x | (gridPos.y << gridSizeShift.y) | (gridPos.z << gridSizeShift.z);
+	int index = ((gridPos.x | (gridPos.y << gridSizeShift.y)) | (gridPos.z << gridSizeShift.z));
 	return volumeData[index];
 }
 

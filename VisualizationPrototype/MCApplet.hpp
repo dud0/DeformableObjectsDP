@@ -93,8 +93,7 @@ public:
 		d_pos = 0;
 		d_normal = 0;
 
-		d_points = 0;
-		pointCnt = 0;
+		pointCnt = 27;
 
 		d_voxelVerts = 0;
 		d_voxelVertsScan = 0;
@@ -283,7 +282,6 @@ protected:
 	cl_mem d_normal;
 
 	cl_mem d_volumeData;
-	cl_mem d_points;
 	cl_uint pointCnt;
 
 	cl_mem d_voxelVerts;
@@ -1005,7 +1003,7 @@ protected:
 
 			activeVoxels = lastElement + lastScanElement;
 		}
-		//printf("activeVoxels = %d\n", activeVoxels);
+		printf("activeVoxels = %d\n", activeVoxels);
 
 		if (activeVoxels==0) {
 			// return if there are no full voxels
@@ -1111,10 +1109,11 @@ protected:
 			if( d_voxelOccupied) clReleaseMemObject(d_voxelOccupied);
 			if( d_voxelOccupiedScan) clReleaseMemObject(d_voxelOccupiedScan);
 			if( d_compVoxelArray) clReleaseMemObject(d_compVoxelArray);
-			if( d_points) clReleaseMemObject(d_points);
+			if( d_volumeData) clReleaseMemObject(d_volumeData);
 
 			closeScan();
 
+			if(calcFieldValueKernel)clReleaseKernel(calcFieldValueKernel);
 			if(compactVoxelsKernel)clReleaseKernel(compactVoxelsKernel);
 			if(compactVoxelsKernel)clReleaseKernel(generateTriangles2Kernel);
 			if(compactVoxelsKernel)clReleaseKernel(classifyVoxelKernel);
