@@ -87,7 +87,7 @@ public:
 		totalVerts   = 0;
 
 		radius = 2.5f;
-		isoValue = 0.2f;
+		isoValue = 0.5f;
 		dIsoValue = 0.005f;
 
 		d_pos = 0;
@@ -129,7 +129,7 @@ public:
 		hEdge = 0; // array of all edges
 		nEdges =0;
 
-		m_timestep=0.02f;
+		m_timestep=0.003f;
 		m_clusterScale=1.54f;
 		m_velocityScale=1.0f;
 		m_softening=0.1f;

@@ -210,43 +210,75 @@ generateTriangles2(__global float4 *pos, __global float *norm, __global uint *co
     v[6] = p + (float4)(voxelSize.x, voxelSize.y, voxelSize.z,0);
     v[7] = p + (float4)(0, voxelSize.y, voxelSize.z,0);
 
-    float field[8];
-    field[0] = getFieldValue(volumeData, gridPos, gridSizeShift);
-    field[1] = getFieldValue(volumeData, gridPos + (int4)(1, 0, 0 ,0), gridSizeShift);
-    field[2] = getFieldValue(volumeData, gridPos + (int4)(1, 1, 0 ,0), gridSizeShift);
-    field[3] = getFieldValue(volumeData, gridPos + (int4)(0, 1, 0 ,0), gridSizeShift);
-    field[4] = getFieldValue(volumeData, gridPos + (int4)(0, 0, 1 ,0), gridSizeShift);
-    field[5] = getFieldValue(volumeData, gridPos + (int4)(1, 0, 1 ,0), gridSizeShift);
-    field[6] = getFieldValue(volumeData, gridPos + (int4)(1, 1, 1 ,0), gridSizeShift);
-    field[7] = getFieldValue(volumeData, gridPos + (int4)(0, 1, 1 ,0), gridSizeShift);
+    float4 field[8];
+    field[0].w = getFieldValue(volumeData, gridPos, gridSizeShift);
+    field[1].w = getFieldValue(volumeData, gridPos + (int4)(1, 0, 0 ,0), gridSizeShift);
+    field[2].w = getFieldValue(volumeData, gridPos + (int4)(1, 1, 0 ,0), gridSizeShift);
+    field[3].w = getFieldValue(volumeData, gridPos + (int4)(0, 1, 0 ,0), gridSizeShift);
+    field[4].w = getFieldValue(volumeData, gridPos + (int4)(0, 0, 1 ,0), gridSizeShift);
+    field[5].w = getFieldValue(volumeData, gridPos + (int4)(1, 0, 1 ,0), gridSizeShift);
+    field[6].w = getFieldValue(volumeData, gridPos + (int4)(1, 1, 1 ,0), gridSizeShift);
+    field[7].w = getFieldValue(volumeData, gridPos + (int4)(0, 1, 1 ,0), gridSizeShift);
+
+    field[0].x = field[0].w - field[1].w;
+    field[0].y = field[0].w - field[3].w;
+    field[0].z = field[0].w - field[4].w;
+
+    field[1].x = -field[1].w + field[0].w;
+    field[1].y =  field[1].w - field[2].w;
+    field[1].z =  field[1].w - field[5].w;
+
+    field[2].x = -field[2].w + field[3].w;
+    field[2].y = -field[2].w + field[1].w;
+    field[2].z =  field[2].w - field[6].w;
+
+    field[3].x =  field[3].w - field[2].w;
+    field[3].y = -field[3].w + field[0].w;
+    field[3].z =  field[3].w - field[7].w;
+
+    field[4].x =  field[4].w - field[5].w;
+    field[4].y =  field[4].w - field[7].w;
+    field[4].z = -field[4].w + field[0].w;
+
+    field[5].x = -field[5].w + field[4].w;
+    field[5].y =  field[5].w - field[6].w;
+    field[5].z = -field[5].w + field[1].w;
+
+    field[6].x = -field[6].w + field[7].w;
+    field[6].y = -field[6].w + field[5].w;
+    field[6].z = -field[6].w + field[2].w;
+
+    field[7].x =  field[7].w - field[6].w;
+    field[7].y = -field[7].w + field[4].w;
+    field[7].z = -field[7].w + field[3].w;
 
     // recalculate flag
     int cubeindex;
-	cubeindex =  (field[0] < isoValue); 
-	cubeindex += (field[1] < isoValue)*2; 
-	cubeindex += (field[2] < isoValue)*4; 
-	cubeindex += (field[3] < isoValue)*8; 
-	cubeindex += (field[4] < isoValue)*16; 
-	cubeindex += (field[5] < isoValue)*32; 
-	cubeindex += (field[6] < isoValue)*64; 
-	cubeindex += (field[7] < isoValue)*128;
+	cubeindex =  (field[0].w < isoValue); 
+	cubeindex += (field[1].w < isoValue)*2; 
+	cubeindex += (field[2].w < isoValue)*4; 
+	cubeindex += (field[3].w < isoValue)*8; 
+	cubeindex += (field[4].w < isoValue)*16; 
+	cubeindex += (field[5].w < isoValue)*32; 
+	cubeindex += (field[6].w < isoValue)*64; 
+	cubeindex += (field[7].w < isoValue)*128;
 
 	// find the vertices where the surface intersects the cube 
-	__local float4 vertlist[16*NTHREADS];
+	float4 vertlist[12];
+	float4 normlist[12];
 
-	vertlist[tid] = vertexInterp(isoValue, v[0], v[1], field[0], field[1]);
-	vertlist[NTHREADS+tid] = vertexInterp(isoValue, v[1], v[2], field[1], field[2]);
-	vertlist[(NTHREADS*2)+tid] = vertexInterp(isoValue, v[2], v[3], field[2], field[3]);
-	vertlist[(NTHREADS*3)+tid] = vertexInterp(isoValue, v[3], v[0], field[3], field[0]);
-	vertlist[(NTHREADS*4)+tid] = vertexInterp(isoValue, v[4], v[5], field[4], field[5]);
-	vertlist[(NTHREADS*5)+tid] = vertexInterp(isoValue, v[5], v[6], field[5], field[6]);
-	vertlist[(NTHREADS*6)+tid] = vertexInterp(isoValue, v[6], v[7], field[6], field[7]);
-	vertlist[(NTHREADS*7)+tid] = vertexInterp(isoValue, v[7], v[4], field[7], field[4]);
-	vertlist[(NTHREADS*8)+tid] = vertexInterp(isoValue, v[0], v[4], field[0], field[4]);
-	vertlist[(NTHREADS*9)+tid] = vertexInterp(isoValue, v[1], v[5], field[1], field[5]);
-	vertlist[(NTHREADS*10)+tid] = vertexInterp(isoValue, v[2], v[6], field[2], field[6]);
-	vertlist[(NTHREADS*11)+tid] = vertexInterp(isoValue, v[3], v[7], field[3], field[7]);
-    barrier(CLK_LOCAL_MEM_FENCE);
+	vertexInterp2(isoValue, v[0], v[1], field[0], field[1], &vertlist[0], &normlist[0]);
+	vertexInterp2(isoValue, v[1], v[2], field[1], field[2], &vertlist[1], &normlist[1]);
+	vertexInterp2(isoValue, v[2], v[3], field[2], field[3], &vertlist[2], &normlist[2]);
+	vertexInterp2(isoValue, v[3], v[0], field[3], field[0], &vertlist[3], &normlist[3]);
+	vertexInterp2(isoValue, v[4], v[5], field[4], field[5], &vertlist[4], &normlist[4]);
+	vertexInterp2(isoValue, v[5], v[6], field[5], field[6], &vertlist[5], &normlist[5]);
+	vertexInterp2(isoValue, v[6], v[7], field[6], field[7], &vertlist[6], &normlist[6]);
+	vertexInterp2(isoValue, v[7], v[4], field[7], field[4], &vertlist[7], &normlist[7]);
+	vertexInterp2(isoValue, v[0], v[4], field[0], field[4], &vertlist[8], &normlist[8]);
+	vertexInterp2(isoValue, v[1], v[5], field[1], field[5], &vertlist[9], &normlist[9]);
+	vertexInterp2(isoValue, v[2], v[6], field[2], field[6], &vertlist[10], &normlist[10]);
+	vertexInterp2(isoValue, v[3], v[7], field[3], field[7], &vertlist[11], &normlist[11]);
 
     // output triangle vertices
     uint numVerts = read_imageui(numVertsTex, tableSampler, (int2)(cubeindex,0)).x;
@@ -255,34 +287,38 @@ generateTriangles2(__global float4 *pos, __global float *norm, __global uint *co
         uint index = numVertsScanned[voxel] + i;
 
         float4 v[3];
+	float4 n[3];
         uint edge;
         edge = read_imageui(triTex, tableSampler, (int2)(i,cubeindex)).x;
-        v[0] = vertlist[(edge*NTHREADS)+tid];
+        v[0] = vertlist[edge];
+	n[0] = normlist[edge];
 
         edge = read_imageui(triTex, tableSampler, (int2)(i+1,cubeindex)).x;
-        v[1] = vertlist[(edge*NTHREADS)+tid];
+        v[1] = vertlist[edge];
+	n[1] = normlist[edge];
 
         edge = read_imageui(triTex, tableSampler, (int2)(i+2,cubeindex)).x;
-        v[2] = vertlist[(edge*NTHREADS)+tid];
+        v[2] = vertlist[edge];
+	n[2] = normlist[edge];
 
         // calculate triangle surface normal
-        float4 n = calcNormal(v[0], v[1], v[2]);
+        //float4 n = calcNormal(v[0], v[1], v[2]);
 
         if (index < (maxVerts - 3)) {
-            pos[index] = v[0];
-            norm[index*3] = n.x;
-			norm[index*3 + 1] = n.y;
-			norm[index*3 + 2] = n.z;
+		pos[index] = v[0];
+        	norm[index*3] = n[0].x;
+		norm[index*3 + 1] = n[0].y;
+		norm[index*3 + 2] = n[0].z;
 
-            pos[index+1] = v[1];
-            norm[index*3 + 3] = n.x;
-			norm[index*3 + 4] = n.y;
-			norm[index*3 + 5] = n.z;
+	        pos[index+1] = v[1];
+        	norm[index*3 + 3] = n[1].x;
+		norm[index*3 + 4] = n[1].y;
+		norm[index*3 + 5] = n[1].z;
 
-            pos[index+2] = v[2];
-            norm[index*3 + 6] = n.x;
-			norm[index*3 + 7] = n.y;
-			norm[index*3 + 8] = n.z;
+	        pos[index+2] = v[2];
+        	norm[index*3 + 6] = n[2].x;
+		norm[index*3 + 7] = n[2].y;
+		norm[index*3 + 8] = n[2].z;
         }
     }
 }
