@@ -47,6 +47,7 @@
 #include <vlCore/Time.hpp>
 #include <vlGraphics/Effect.hpp>
 #include <vlGraphics/Light.hpp>
+#include <vlGraphics/GLSL.hpp>
 
 #include <math.h>
 #include <memory>
@@ -86,7 +87,7 @@ public:
 		activeVoxels = 0;
 		totalVerts   = 0;
 
-		radius = 2.5f;
+		radius = 5.5f;
 		isoValue = 0.5f;
 		dIsoValue = 0.005f;
 
@@ -151,7 +152,7 @@ public:
 			p = numBodies;
 		}
 
-		fprintf(stderr, "%d", cdDevices[uiDeviceUsed]);
+
 
 		InitNbody(cdDevices[uiDeviceUsed], cxGPUContext, cqCommandQueue, numBodies, p, q, false, false, NBODY_CONFIG_SHELL);
 		ResetSim(nbody, numBodies, NBODY_CONFIG_SHELL, false);
@@ -1162,9 +1163,13 @@ public:
 		// enable the standard OpenGL lighting
 		effect->shader()->enable(vl::EN_LIGHTING);
 
-		// set the front and back material color of the cube
-		// "gocMaterial" stands for "get-or-create Material"
-		effect->shader()->gocMaterial()->setDiffuse( vl::red );
+		vl::ref<vl::GLSLVertexShader> perpixellight_vs = new vl::GLSLVertexShader("./glsl/perpixellight.vs");
+
+		vl::ref<vl::GLSLProgram> glsl = new vl::GLSLProgram;
+		glsl->attachShader( perpixellight_vs.get() );
+		glsl->attachShader( new vl::GLSLFragmentShader("./glsl/perpixellight_interlaced.fs") );
+
+		effect->shader()->setRenderState(glsl.get());
 
 		// install our scene manager, we use the SceneManagerActorTree which is the most generic
 		vl::ref<vl::SceneManagerActorTree> scene_manager = new vl::SceneManagerActorTree;
