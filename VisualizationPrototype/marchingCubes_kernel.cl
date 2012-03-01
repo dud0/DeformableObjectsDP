@@ -141,8 +141,6 @@ compactVoxels(__global uint *compactedVoxelArray, __global uint *voxelOccupied, 
     }
 }
 
-
-
 // compute interpolated vertex along an edge
 float4 vertexInterp(float isolevel, float4 p0, float4 p1, float f0, float f1)
 {
@@ -159,20 +157,16 @@ void vertexInterp2(float isolevel, float4 p0, float4 p1, float4 f0, float4 f1, f
     (*n).y = mix(f0.y, f1.y, t);
     (*n).z = mix(f0.z, f1.z, t);
 //    n = normalize(n);
-} 
-
-
-
-// calculate triangle normal
-float4 calcNormal(float4 v0, float4 v1, float4 v2)
-{
-    float4 edge0 = v1 - v0;
-    float4 edge1 = v2 - v0;
-    // note - it's faster to perform normalization in vertex shader rather than here
-    return cross(edge0, edge1);
 }
 
-// version that calculates flat surface normal for each triangle
+//returns field value and gradient for the given gridPos
+void getFVG(float4 *field,__global float *volumeData, int4 gridPos, uint4 gridSizeShift) {
+	(*field).w = getFieldValue(volumeData, gridPos, gridSizeShift);
+	(*field).x = -getFieldValue(volumeData, gridPos + (int4)(1, 0, 0 ,0), gridSizeShift) + getFieldValue(volumeData, gridPos - (int4)(1, 0, 0 ,0), gridSizeShift);
+	(*field).y = -getFieldValue(volumeData, gridPos + (int4)(0, 1, 0 ,0), gridSizeShift) + getFieldValue(volumeData, gridPos - (int4)(0, 1, 0 ,0), gridSizeShift);
+	(*field).z = -getFieldValue(volumeData, gridPos + (int4)(0, 0, 1 ,0), gridSizeShift) + getFieldValue(volumeData, gridPos - (int4)(0, 0, 1 ,0), gridSizeShift);
+}
+
 __kernel
 void
 generateTriangles2(__global float4 *pos, __global float *norm, __global uint *compactedVoxelArray, __global uint *numVertsScanned, 
@@ -211,46 +205,14 @@ generateTriangles2(__global float4 *pos, __global float *norm, __global uint *co
     v[7] = p + (float4)(0, voxelSize.y, voxelSize.z,0);
 
     float4 field[8];
-    field[0].w = getFieldValue(volumeData, gridPos, gridSizeShift);
-    field[1].w = getFieldValue(volumeData, gridPos + (int4)(1, 0, 0 ,0), gridSizeShift);
-    field[2].w = getFieldValue(volumeData, gridPos + (int4)(1, 1, 0 ,0), gridSizeShift);
-    field[3].w = getFieldValue(volumeData, gridPos + (int4)(0, 1, 0 ,0), gridSizeShift);
-    field[4].w = getFieldValue(volumeData, gridPos + (int4)(0, 0, 1 ,0), gridSizeShift);
-    field[5].w = getFieldValue(volumeData, gridPos + (int4)(1, 0, 1 ,0), gridSizeShift);
-    field[6].w = getFieldValue(volumeData, gridPos + (int4)(1, 1, 1 ,0), gridSizeShift);
-    field[7].w = getFieldValue(volumeData, gridPos + (int4)(0, 1, 1 ,0), gridSizeShift);
-
-    field[0].x = field[0].w - field[1].w;
-    field[0].y = field[0].w - field[3].w;
-    field[0].z = field[0].w - field[4].w;
-
-    field[1].x = -field[1].w + field[0].w;
-    field[1].y =  field[1].w - field[2].w;
-    field[1].z =  field[1].w - field[5].w;
-
-    field[2].x = -field[2].w + field[3].w;
-    field[2].y = -field[2].w + field[1].w;
-    field[2].z =  field[2].w - field[6].w;
-
-    field[3].x =  field[3].w - field[2].w;
-    field[3].y = -field[3].w + field[0].w;
-    field[3].z =  field[3].w - field[7].w;
-
-    field[4].x =  field[4].w - field[5].w;
-    field[4].y =  field[4].w - field[7].w;
-    field[4].z = -field[4].w + field[0].w;
-
-    field[5].x = -field[5].w + field[4].w;
-    field[5].y =  field[5].w - field[6].w;
-    field[5].z = -field[5].w + field[1].w;
-
-    field[6].x = -field[6].w + field[7].w;
-    field[6].y = -field[6].w + field[5].w;
-    field[6].z = -field[6].w + field[2].w;
-
-    field[7].x =  field[7].w - field[6].w;
-    field[7].y = -field[7].w + field[4].w;
-    field[7].z = -field[7].w + field[3].w;
+    getFVG(&field[0], volumeData, gridPos, gridSizeShift);
+    getFVG(&field[1], volumeData, gridPos + (int4)(1, 0, 0 ,0), gridSizeShift);
+    getFVG(&field[2], volumeData, gridPos + (int4)(1, 1, 0 ,0), gridSizeShift);
+    getFVG(&field[3], volumeData, gridPos + (int4)(0, 1, 0 ,0), gridSizeShift);
+    getFVG(&field[4], volumeData, gridPos + (int4)(0, 0, 1 ,0), gridSizeShift);
+    getFVG(&field[5], volumeData, gridPos + (int4)(1, 0, 1 ,0), gridSizeShift);
+    getFVG(&field[6], volumeData, gridPos + (int4)(1, 1, 1 ,0), gridSizeShift);
+    getFVG(&field[7], volumeData, gridPos + (int4)(0, 1, 1 ,0), gridSizeShift);
 
     // recalculate flag
     int cubeindex;
