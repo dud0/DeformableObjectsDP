@@ -47,6 +47,7 @@
 #include <vlCore/Time.hpp>
 #include <vlGraphics/Effect.hpp>
 #include <vlGraphics/Light.hpp>
+#include <vlGraphics/GLSL.hpp>
 
 #include <math.h>
 #include <memory>
@@ -88,15 +89,16 @@ public:
 		activeVoxels = 0;
 		totalVerts   = 0;
 
-		radius = 2.5f;
+
+		radius = 5.5f;
+
 		isoValue = 0.5f;
 		dIsoValue = 0.005f;
 
 		d_pos = 0;
 		d_normal = 0;
 
-		d_points = 0;
-		pointCnt = 0;
+		pointCnt = 1000;
 
 		d_voxelVerts = 0;
 		d_voxelVertsScan = 0;
@@ -132,7 +134,7 @@ public:
 		hEdge = 0; // array of all edges
 		nEdges =0;
 
-		m_timestep=0.02f;
+		m_timestep=0.003f;
 		m_clusterScale=1.54f;
 		m_velocityScale=1.0f;
 		m_softening=0.1f;
@@ -154,7 +156,7 @@ public:
 			p = numBodies;
 		}
 
-		fprintf(stderr, "%d", cdDevices[uiDeviceUsed]);
+
 
 		InitNbody(cdDevices[uiDeviceUsed], cxGPUContext, cqCommandQueue, numBodies, p, q, false, false, NBODY_CONFIG_SHELL);
 		ResetSim(nbody, numBodies, NBODY_CONFIG_SHELL, false);
@@ -243,6 +245,7 @@ protected:
 	cl_device_id device;
 	cl_command_queue cqCommandQueue;
 	cl_program cpProgram;
+	cl_kernel calcFieldValueKernel;
 	cl_kernel classifyVoxelKernel;
 	cl_kernel compactVoxelsKernel;
 	cl_kernel generateTriangles2Kernel;
@@ -287,7 +290,7 @@ protected:
 	cl_mem d_pos;
 	cl_mem d_normal;
 
-	cl_mem d_points;
+	cl_mem d_volumeData;
 	cl_uint pointCnt;
 
 	cl_mem d_voxelVerts;
@@ -746,14 +749,26 @@ protected:
 						   numVoxels);
 	}
 
+	void launch_calcFieldValue(dim3 grid, dim3 threads, cl_mem volumeData, cl_mem points, cl_uint pointCnt, cl_float radius, cl_uint gridSizeShift[4], cl_uint gridSizeMask[4]) {
+		clSetKernelArg(calcFieldValueKernel, 0, sizeof(cl_mem), &volumeData);
+		clSetKernelArg(calcFieldValueKernel, 1, sizeof(cl_mem), &points);
+		clSetKernelArg(calcFieldValueKernel, 2, sizeof(cl_uint), &pointCnt);
+		clSetKernelArg(calcFieldValueKernel, 3, sizeof(cl_float), &radius);
+		clSetKernelArg(calcFieldValueKernel, 4, 4 * sizeof(cl_uint), gridSizeShift);
+		clSetKernelArg(calcFieldValueKernel, 5, 4 * sizeof(cl_uint), gridSizeMask);
+
+		grid.x *= threads.x;
+		ciErrNum = clEnqueueNDRangeKernel(cqCommandQueue, calcFieldValueKernel, 1, NULL, (size_t*) &grid, (size_t*) &threads, 0, 0, 0);
+	}
+
 	void
-	launch_classifyVoxel( dim3 grid, dim3 threads, cl_mem voxelVerts, cl_mem voxelOccupied, cl_mem points, cl_uint pointCnt,
+	launch_classifyVoxel( dim3 grid, dim3 threads, cl_mem voxelVerts, cl_mem voxelOccupied, cl_mem volumeData,
 						  cl_uint gridSize[4], cl_uint gridSizeShift[4], cl_uint gridSizeMask[4], uint numVoxels,
-						  cl_float voxelSize[4], float isoValue, cl_float radius)
+						  cl_float voxelSize[4], float isoValue)
 	{
 		ciErrNum = clSetKernelArg(classifyVoxelKernel, 0, sizeof(cl_mem), &voxelVerts);
 		ciErrNum = clSetKernelArg(classifyVoxelKernel, 1, sizeof(cl_mem), &voxelOccupied);
-		ciErrNum = clSetKernelArg(classifyVoxelKernel, 2, sizeof(cl_mem), &points);
+		ciErrNum = clSetKernelArg(classifyVoxelKernel, 2, sizeof(cl_mem), &volumeData);
 		ciErrNum = clSetKernelArg(classifyVoxelKernel, 3, 4 * sizeof(cl_uint), gridSize);
 		ciErrNum = clSetKernelArg(classifyVoxelKernel, 4, 4 * sizeof(cl_uint), gridSizeShift);
 		ciErrNum = clSetKernelArg(classifyVoxelKernel, 5, 4 * sizeof(cl_uint), gridSizeMask);
@@ -761,8 +776,6 @@ protected:
 		ciErrNum = clSetKernelArg(classifyVoxelKernel, 7, 4 * sizeof(cl_float), voxelSize);
 		ciErrNum = clSetKernelArg(classifyVoxelKernel, 8, sizeof(float), &isoValue);
 		ciErrNum = clSetKernelArg(classifyVoxelKernel, 9, sizeof(cl_mem), &d_numVertsTable);
-		ciErrNum = clSetKernelArg(classifyVoxelKernel, 10, sizeof(cl_uint), &pointCnt);
-		ciErrNum = clSetKernelArg(classifyVoxelKernel, 11, sizeof(cl_float), &radius);
 
 		grid.x *= threads.x;
 		ciErrNum = clEnqueueNDRangeKernel(cqCommandQueue, classifyVoxelKernel, 1, NULL, (size_t*) &grid, (size_t*) &threads, 0, 0, 0);
@@ -782,7 +795,7 @@ protected:
 
 	void
 	launch_generateTriangles2(dim3 grid, dim3 threads,
-							  cl_mem pos, cl_mem norm, cl_mem compactedVoxelArray, cl_mem numVertsScanned, cl_mem points, cl_uint pointCnt, cl_float radius,
+							  cl_mem pos, cl_mem norm, cl_mem compactedVoxelArray, cl_mem numVertsScanned, cl_mem volumeData,
 							  cl_uint gridSize[4], cl_uint gridSizeShift[4], cl_uint gridSizeMask[4],
 							  cl_float voxelSize[4], float isoValue, uint activeVoxels, uint maxVerts)
 	{
@@ -790,7 +803,7 @@ protected:
 		ciErrNum = clSetKernelArg(generateTriangles2Kernel, 1, sizeof(cl_mem), &norm);
 		ciErrNum = clSetKernelArg(generateTriangles2Kernel, 2, sizeof(cl_mem), &compactedVoxelArray);
 		ciErrNum = clSetKernelArg(generateTriangles2Kernel, 3, sizeof(cl_mem), &numVertsScanned);
-		ciErrNum = clSetKernelArg(generateTriangles2Kernel, 4, sizeof(cl_mem), &points);
+		ciErrNum = clSetKernelArg(generateTriangles2Kernel, 4, sizeof(cl_mem), &volumeData);
 		ciErrNum = clSetKernelArg(generateTriangles2Kernel, 5, 4 * sizeof(cl_uint), gridSize);
 		ciErrNum = clSetKernelArg(generateTriangles2Kernel, 6, 4 * sizeof(cl_uint), gridSizeShift);
 		ciErrNum = clSetKernelArg(generateTriangles2Kernel, 7, 4 * sizeof(cl_uint), gridSizeMask);
@@ -800,8 +813,6 @@ protected:
 		ciErrNum = clSetKernelArg(generateTriangles2Kernel, 11, sizeof(uint), &maxVerts);
 		ciErrNum = clSetKernelArg(generateTriangles2Kernel, 12, sizeof(cl_mem), &d_numVertsTable);
 		ciErrNum = clSetKernelArg(generateTriangles2Kernel, 13, sizeof(cl_mem), &d_triTable);
-		ciErrNum = clSetKernelArg(generateTriangles2Kernel, 14, sizeof(cl_uint), &pointCnt);
-		ciErrNum = clSetKernelArg(generateTriangles2Kernel, 15, sizeof(cl_float), &radius);
 
 		grid.x *= threads.x;
 		ciErrNum = clEnqueueNDRangeKernel(cqCommandQueue, generateTriangles2Kernel, 1, NULL, (size_t*) &grid, (size_t*) &threads, 0, 0, 0);
@@ -887,8 +898,7 @@ protected:
 		d_voxelOccupied = clCreateBuffer(cxGPUContext, CL_MEM_READ_WRITE, memSize, 0, &ciErrNum);
 		d_voxelOccupiedScan = clCreateBuffer(cxGPUContext, CL_MEM_READ_WRITE, memSize, 0, &ciErrNum);
 		d_compVoxelArray = clCreateBuffer(cxGPUContext, CL_MEM_READ_WRITE, memSize, 0, &ciErrNum);
-		//d_points = clCreateBuffer(cxGPUContext, CL_MEM_READ_WRITE, sizeof(cl_int)*4*pointCnt, &points, &ciErrNum);
-		//clEnqueueWriteBuffer(cqCommandQueue , d_points, CL_TRUE, 0, sizeof(cl_int)*4*pointCnt, &points, 0, 0, 0);
+		d_volumeData = clCreateBuffer(cxGPUContext, CL_MEM_READ_WRITE, sizeof(float)*numVoxels, 0, &ciErrNum);
 	}
 
 	void initCL() {
@@ -992,6 +1002,8 @@ protected:
 		}
 
 		// create the kernel
+		calcFieldValueKernel = clCreateKernel(cpProgram, "calcFieldValue", &ciErrNum);
+
 		classifyVoxelKernel = clCreateKernel(cpProgram, "classifyVoxel", &ciErrNum);
 
 		compactVoxelsKernel = clCreateKernel(cpProgram, "compactVoxels", &ciErrNum);
@@ -1016,11 +1028,16 @@ protected:
 			grid.x = 32768;
 		}
 
+		launch_calcFieldValue(grid, threads,
+				d_volumeData, nbody->getPos(), pointCnt, radius, gridSizeShift, gridSizeMask);
+
 		// calculate number of vertices need per voxel
 		launch_classifyVoxel(grid, threads,
-							d_voxelVerts, d_voxelOccupied, nbody->getPos(), numBodies,
+
+							d_voxelVerts, d_voxelOccupied, d_volumeData,//nbody->getPos(),
+
 							gridSize, gridSizeShift, gridSizeMask,
-							 numVoxels, voxelSize, isoValue, radius);
+							 numVoxels, voxelSize, isoValue);
 
 		// scan voxel occupied array
 		openclScan(d_voxelOccupiedScan, d_voxelOccupied, numVoxels);
@@ -1036,7 +1053,7 @@ protected:
 
 			activeVoxels = lastElement + lastScanElement;
 		}
-		//printf("activeVoxels = %d\n", activeVoxels);
+		printf("activeVoxels = %d\n", activeVoxels);
 
 		if (activeVoxels==0) {
 			// return if there are no full voxels
@@ -1083,7 +1100,9 @@ protected:
 		}
 		launch_generateTriangles2(grid2, NTHREADS, d_pos, d_normal,
 												d_compVoxelArray,
-												d_voxelVertsScan, nbody->getPos(), numBodies, radius,
+
+												d_voxelVertsScan, d_volumeData,
+
 												gridSize, gridSizeShift, gridSizeMask,
 												voxelSize, isoValue, activeVoxels,
 								  maxVerts);
@@ -1142,10 +1161,11 @@ protected:
 			if( d_voxelOccupied) clReleaseMemObject(d_voxelOccupied);
 			if( d_voxelOccupiedScan) clReleaseMemObject(d_voxelOccupiedScan);
 			if( d_compVoxelArray) clReleaseMemObject(d_compVoxelArray);
-			if( d_points) clReleaseMemObject(d_points);
+			if( d_volumeData) clReleaseMemObject(d_volumeData);
 
 			closeScan();
 
+			if(calcFieldValueKernel)clReleaseKernel(calcFieldValueKernel);
 			if(compactVoxelsKernel)clReleaseKernel(compactVoxelsKernel);
 			if(compactVoxelsKernel)clReleaseKernel(generateTriangles2Kernel);
 			if(compactVoxelsKernel)clReleaseKernel(classifyVoxelKernel);
@@ -1194,9 +1214,13 @@ public:
 		// enable the standard OpenGL lighting
 		effect->shader()->enable(vl::EN_LIGHTING);
 
-		// set the front and back material color of the cube
-		// "gocMaterial" stands for "get-or-create Material"
-		effect->shader()->gocMaterial()->setDiffuse( vl::red );
+		vl::ref<vl::GLSLVertexShader> perpixellight_vs = new vl::GLSLVertexShader("./glsl/perpixellight.vs");
+
+		vl::ref<vl::GLSLProgram> glsl = new vl::GLSLProgram;
+		glsl->attachShader( perpixellight_vs.get() );
+		glsl->attachShader( new vl::GLSLFragmentShader("./glsl/perpixellight_interlaced.fs") );
+
+		effect->shader()->setRenderState(glsl.get());
 
 		// install our scene manager, we use the SceneManagerActorTree which is the most generic
 		vl::ref<vl::SceneManagerActorTree> scene_manager = new vl::SceneManagerActorTree;
@@ -1211,7 +1235,7 @@ public:
 	// called every frame
 	virtual void updateScene()
 	{
-
+		printf("%f\n",fps());
 	}
 
 
