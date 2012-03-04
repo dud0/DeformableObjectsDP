@@ -42,6 +42,7 @@
             BODYSYSTEM_F,
             BODYSYSTEM_EDGE,
             BODYSYSTEM_FORCES,
+            BODYSYSTEM_FORCES_WRITE,
         };
 
         virtual void setSoftening(float softening) = 0;

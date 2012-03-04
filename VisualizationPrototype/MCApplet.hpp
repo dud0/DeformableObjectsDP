@@ -59,6 +59,8 @@
 
 #include <GL/glx.h>
 
+#define SCALE 10
+
 #define GL_SHARING_EXTENSION "cl_khr_gl_sharing"
 
 #define REFRESH_DELAY	  10 //ms
@@ -87,7 +89,7 @@ public:
 		totalVerts   = 0;
 
 		radius = 2.5f;
-		isoValue = 0.2f;
+		isoValue = 0.5f;
 		dIsoValue = 0.005f;
 
 		d_pos = 0;
@@ -117,7 +119,7 @@ public:
 		g_bNoprompt = false;
 		bQATest = false;
 
-		int numBodies = 27;
+		numBodies = 1000;
 		int p = 256;
 		int q = 1;
 
@@ -191,7 +193,10 @@ public:
 			return;
 
 		//run kernels to update particle positions
+
+
 		nbody->update(m_timestep);
+
 
 		// run kernels to generate geometry
 		computeIsosurface();
@@ -209,6 +214,7 @@ public:
 
 protected:
 	//simulation fields
+	int numBodies;
 	BodySystemOpenCL * nbody;
 	float* hPos;
 	float* hVel;
@@ -326,7 +332,6 @@ protected:
 	    //hEdge = new float[nEdges*3];
 
 	    float tmpNUM = pow(numBodies, 1./3.);
-	    float SCALE = 5;
 	    float tmpINC = (SCALE)/tmpNUM;
 	    int n = 0;
 	    int p = 0;
@@ -514,6 +519,13 @@ protected:
 
 	    shrLog("\nnEdges created = %d\n", n);
 
+	    for (int i = n; i < nEdges; i++) {
+	    	hEdge[i*4] = -1;
+	    	hEdge[i*4+1] = -1;
+	    	hEdge[i*4+2] = 0;
+	    	hEdge[i*4+3] = 0.0f;
+	    }
+
 	    for (int i = 0; i < nEdges; i++) {
 	    	shrLog("E: %d ==> p1: %d; p2: %d; l0: %f\n", i, (int)hEdge[i*4], (int)hEdge[i*4+1], hEdge[i*4+2]);
 	    }
@@ -540,7 +552,6 @@ protected:
 	    		m_velocityScale, numBodies);
 
 	    float tmpNUM = pow(numBodies, 1./3.);
-	    float SCALE = 5;
 	    float tmpINC = (SCALE)/tmpNUM;
 	    int n = 0;
 	    bool bX = true, bY = true, bZ = true; // 1
@@ -621,7 +632,30 @@ protected:
 	    	bmXYZ = true, bXYZ = true, bXmYZ = true, bmXmYZ = true;
 	    }
 
-	    nEdges = n;
+	    if (n <= 128) {
+	    	nEdges = n;
+	    } else {
+	    	if (n <= 256)
+	    		nEdges = 256;
+	    	else if (n <= 512)
+	    		nEdges= 512;
+	    	else if (n <= 1024)
+	    		nEdges = 1024;
+	    	else if (n <= 2048)
+	    		nEdges = 2048;
+	    	else if (n <= 4096)
+	    		nEdges = 4096;
+	    	else if (n <= 8192)
+	    		nEdges = 8192;
+	    	else if (n <= 16384)
+	    		nEdges = 16384;
+	    	else if(n <= 32768)
+	    		nEdges = 32768;
+	    	else if (n <= 65536)
+	    		nEdges = 65536;
+	    }
+
+	 //   nEdges = n;
 
 	    hEdge = new float[nEdges*4];
 
@@ -644,13 +678,14 @@ protected:
 		float i, j, k;
 		//float tmpNUM = sqrt(sqrt(numBodies));
 		float tmpNUM = pow(numBodies, 1./3.);
-		float SCALE = 5;
 		float tmpINC = (SCALE)/tmpNUM;
 		int p=0, v=0;
 
-		for (i = 10; i < SCALE+10; i += tmpINC) {
-			for (j = 10; j < SCALE+10; j += tmpINC) {
-				for (k = 10 ; k < SCALE+10; k += tmpINC) {
+		//shrLog("tmpNUM: %f, tmpINC: %f, sucin: %f\n\n", tmpNUM, tmpINC, tmpNUM*tmpINC);
+
+		for (i = 10; i < ((tmpNUM*tmpINC)-0.001)+10; i += tmpINC) {
+			for (j = 10; j < ((tmpNUM*tmpINC)-0.001)+10; j += tmpINC) {
+				for (k = 10 ; k < ((tmpNUM*tmpINC)-0.001)+10; k += tmpINC) {
 					shrLog("BOD - %d - x: %f; y: %f; z: %f\n", int(p/4), i, j, k);
 					force[p] = 0.0f;
 					forces[p] = 0.0f;
@@ -671,23 +706,33 @@ protected:
 					vel[v++] = 1.0f;
 
 					*numEdges += 3;
+
+					if ((j+tmpINC) >= ((tmpNUM*tmpINC)-0.001)+10) {
+										force[p-3] = 200.0f;
+									}
 				}
 				*numEdges -= 1;
+
 			}
 			*numEdges -= (int)tmpNUM;
 		}
 		*numEdges -= ((int)tmpNUM*(int)tmpNUM);
 
+		fprintf(stdout, "\nnumEdges in randomize bodies: %d\n", *numEdges);
 
-		force[6*4+1] = 20.0f;
-		force[7*4+1] = 20.0f;
-		force[8*4+1] = 20.0f;
-		force[15*4+1] = 20.0f;
-		force[16*4+1] = 20.0f;
-		force[17*4+1] = 20.0f;
-		force[24*4+1] = 20.0f;
-		force[25*4+1] = 20.0f;
-		force[26*4+1] = 20.0f;
+
+
+	//	force[(numBodies-1)*4+1] = 200.0f;
+
+
+		//		force[7*4+1] = 20.0f;
+//		force[8*4+1] = 20.0f;
+//		force[15*4+1] = 20.0f;
+//		force[16*4+1] = 20.0f;
+//		force[17*4+1] = 20.0f;
+//		force[24*4+1] = 20.0f;
+//		force[25*4+1] = 20.0f;
+//		force[26*4+1] = 20.0f;
 
 	}
 
@@ -973,7 +1018,7 @@ protected:
 
 		// calculate number of vertices need per voxel
 		launch_classifyVoxel(grid, threads,
-							d_voxelVerts, d_voxelOccupied, nbody->getPos(), 27,
+							d_voxelVerts, d_voxelOccupied, nbody->getPos(), numBodies,
 							gridSize, gridSizeShift, gridSizeMask,
 							 numVoxels, voxelSize, isoValue, radius);
 
@@ -1038,7 +1083,7 @@ protected:
 		}
 		launch_generateTriangles2(grid2, NTHREADS, d_pos, d_normal,
 												d_compVoxelArray,
-												d_voxelVertsScan, nbody->getPos(), 27, radius,
+												d_voxelVertsScan, nbody->getPos(), numBodies, radius,
 												gridSize, gridSizeShift, gridSizeMask,
 												voxelSize, isoValue, activeVoxels,
 								  maxVerts);

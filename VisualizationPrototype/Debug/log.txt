@@ -1,5 +1,5 @@
 Visualization Library v2011.9.1160 [f32]
-Oct 17 2011 - 20:03:40 - GCC compiler [DEBUG] [x64]
+Nov 20 2011 - 11:54:28 - GCC compiler [DEBUG] [x64]
 
  --- Environment ---
 VL_LOGFILE_PATH <not present>

@@ -167,7 +167,7 @@ void BodySystemOpenCL::setDamping(float damping)
 void BodySystemOpenCL::update(float deltaTime)
 {
 	t++;
-	bool cont = true;
+	/*bool cont = true;
 
 	if (t == 200) {
 		tmpF = getArray(BODYSYSTEM_F);
@@ -290,7 +290,7 @@ void BodySystemOpenCL::update(float deltaTime)
 		tmpF[26*4+1] = 30.0f;
 		setArray(BODYSYSTEM_F, tmpF);
 	}
-
+*/
 	fprintf(stdout, "%d\n",t);
 
     oclCheckError(m_bInitialized, shrTRUE);
@@ -299,25 +299,51 @@ void BodySystemOpenCL::update(float deltaTime)
         		extFor_kernel,
         		m_dForces[m_currentWrite],
         		m_dF[m_currentWrite],
+        		m_dForces[m_currentRead],
         		m_dF[m_currentRead],
         		m_dVel[m_currentRead],
         		m_numBodies, m_p, m_q,
         		1);
 
+ /*   tmpF = getArray(BODYSYSTEM_FORCES_WRITE);
+    fprintf(stdout,"\n\n#####################################################\n");
+    fprintf(stdout,"^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n");
+    for(int i = 0; i < m_numBodies; i++) {
+    	fprintf(stdout, "%d--> x: %f, y: %f, z: %f\n", i, tmpF[i*4], tmpF[i*4+1], tmpF[i*4+2]);
+    }
+
+
+    tmpF = getArray(BODYSYSTEM_FORCES);
+    setArray(BODYSYSTEM_FORCES_WRITE, tmpF);
+*/
     computeSpringsForces(cqCommandQueue,
         		sprFor_kernel,
         		m_dForces[m_currentWrite],
         		m_dEdge[m_currentWrite],
+        		m_dPos[m_currentWrite],
+        		m_dForces[m_currentRead],
         		m_dPos[m_currentRead],
         		m_dEdge[m_currentRead],
         		m_numEdges, m_p, m_q,
         		1);
 
+
+  /*  fprintf(stdout,"^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n");
+    tmpF = getArray(BODYSYSTEM_FORCES_WRITE);
+    for(int i = 0; i < m_numBodies; i++) {
+    	fprintf(stdout, "%d--> x: %f, y: %f, z: %f\n", i, tmpF[i*4], tmpF[i*4+1], tmpF[i*4+2]);
+    }
+    fprintf(stdout,"#####################################################\n");
+
+    tmpF = getArray(BODYSYSTEM_FORCES_WRITE);
+    setArray(BODYSYSTEM_FORCES, tmpF);
+*/
     	integrateSystem(cqCommandQueue,
     			intBod_kernel,
     			m_dPos[m_currentWrite],
     			m_dVel[m_currentWrite],
     			m_dEdge[m_currentWrite],
+    			m_dForces[m_currentWrite],
     			m_dPos[m_currentRead],
     			m_dVel[m_currentRead],
     			m_dEdge[m_currentRead],
@@ -327,6 +353,7 @@ void BodySystemOpenCL::update(float deltaTime)
     			1);
 
     std::swap(m_currentRead, m_currentWrite);
+
 }
 
 float* BodySystemOpenCL::getArray(BodyArray array)
@@ -364,6 +391,11 @@ float* BodySystemOpenCL::getArray(BodyArray array)
         case BODYSYSTEM_FORCES:
         	hdata = m_hForces;
         	ddata = m_dForces[m_currentRead];
+        	nB = m_numBodies;
+        	break;
+        case BODYSYSTEM_FORCES_WRITE:
+        	hdata = m_hForces;
+        	ddata = m_dForces[m_currentWrite];
         	nB = m_numBodies;
         	break;
         case BODYSYSTEM_EDGE:
@@ -419,6 +451,10 @@ void BodySystemOpenCL::setArray(BodyArray array, const float* data)
 
         case BODYSYSTEM_FORCES:
         	CopyArrayToDevice(0, cqCommandQueue, m_dForces[m_currentRead], data, m_numBodies, m_bDouble);
+        	break;
+
+        case BODYSYSTEM_FORCES_WRITE:
+        	CopyArrayToDevice(0, cqCommandQueue, m_dForces[m_currentWrite], data, m_numBodies, m_bDouble);
         	break;
 
         case BODYSYSTEM_EDGE:

@@ -148,6 +148,7 @@ extern "C"
     		cl_kernel k,
     		cl_mem newForces,
     		cl_mem newFc,
+    		cl_mem oldForces,
     		cl_mem oldFc,
     		cl_mem oldVelocities,
     		int numBodies, int p, int q,
@@ -174,14 +175,15 @@ extern "C"
 
     	ciErrNum |= clSetKernelArg(kernel, 0, sizeof(cl_mem), (void *)&newForces);
     	ciErrNum |= clSetKernelArg(kernel, 1, sizeof(cl_mem), (void *)&newFc);
-    	ciErrNum |= clSetKernelArg(kernel, 2, sizeof(cl_mem), (void *)&oldFc);
-    	ciErrNum |= clSetKernelArg(kernel, 3, sizeof(cl_mem), (void *)&oldVelocities);
-    	ciErrNum |= clSetKernelArg(kernel, 4, sizeof(cl_int), (void *)&numBodies);
+    	ciErrNum |= clSetKernelArg(kernel, 2, sizeof(cl_mem), (void *)&oldForces);
+    	ciErrNum |= clSetKernelArg(kernel, 3, sizeof(cl_mem), (void *)&oldFc);
+    	ciErrNum |= clSetKernelArg(kernel, 4, sizeof(cl_mem), (void *)&oldVelocities);
+    	ciErrNum |= clSetKernelArg(kernel, 5, sizeof(cl_int), (void *)&numBodies);
 
     	oclCheckError(ciErrNum, CL_SUCCESS);
 
     	// set work-item dimensions
-    	local_work_size[0] = p;
+    	local_work_size[0] = numBodies;
     	local_work_size[1] = q;
     	global_work_size[0]= numBodies;
     	global_work_size[1]= q;
@@ -196,12 +198,16 @@ extern "C"
     		cl_kernel k,
     		cl_mem newForces,
     		cl_mem newEdges,
+    		cl_mem newPositions,
+    		cl_mem oldForces,
     		cl_mem oldPositions,
     		cl_mem oldEdges,
     		int numEdges, int p, int q,
     		bool bDouble)
     {
     	int sharedMemSize;
+
+    	p = 2048;
 
     	//for double precision
     	if (bDouble)
@@ -222,14 +228,18 @@ extern "C"
 
     	ciErrNum |= clSetKernelArg(kernel, 0, sizeof(cl_mem), (void *)&newForces);
     	ciErrNum |= clSetKernelArg(kernel, 1, sizeof(cl_mem), (void *)&newEdges);
-    	ciErrNum |= clSetKernelArg(kernel, 2, sizeof(cl_mem), (void *)&oldPositions);
-    	ciErrNum |= clSetKernelArg(kernel, 3, sizeof(cl_mem), (void *)&oldEdges);
-    	ciErrNum |= clSetKernelArg(kernel, 4, sizeof(cl_int), (void *)&numEdges);
+    	ciErrNum |= clSetKernelArg(kernel, 2, sizeof(cl_mem), (void *)&newPositions);
+    	ciErrNum |= clSetKernelArg(kernel, 3, sizeof(cl_mem), (void *)&oldForces);
+    	ciErrNum |= clSetKernelArg(kernel, 4, sizeof(cl_mem), (void *)&oldPositions);
+    	ciErrNum |= clSetKernelArg(kernel, 5, sizeof(cl_mem), (void *)&oldEdges);
+    	ciErrNum |= clSetKernelArg(kernel, 6, sizeof(cl_int), (void *)&numEdges);
 
     	oclCheckError(ciErrNum, CL_SUCCESS);
 
+    	//dim3 grid(numEdges/128, 1 ,1);
+
     	// set work-item dimensions
-    	local_work_size[0] = numEdges;
+    	local_work_size[0] = 256;
     	local_work_size[1] = q;
     	global_work_size[0]= numEdges;
     	global_work_size[1]= q;
@@ -245,6 +255,7 @@ extern "C"
     		cl_mem newPositions,
     		cl_mem newVelocities,
     		cl_mem newEdges,
+    		cl_mem newForces,
     		cl_mem oldPositions,
     		cl_mem oldVelocities,
     		cl_mem oldEdges,
@@ -275,17 +286,18 @@ extern "C"
     	ciErrNum |= clSetKernelArg(kernel, 0, sizeof(cl_mem), (void *)&newPositions);
     	ciErrNum |= clSetKernelArg(kernel, 1, sizeof(cl_mem), (void *)&newVelocities);
     	ciErrNum |= clSetKernelArg(kernel, 2, sizeof(cl_mem), (void *)&newEdges);
-    	ciErrNum |= clSetKernelArg(kernel, 3, sizeof(cl_mem), (void *)&oldPositions);
-    	ciErrNum |= clSetKernelArg(kernel, 4, sizeof(cl_mem), (void *)&oldVelocities);
-    	ciErrNum |= clSetKernelArg(kernel, 5, sizeof(cl_mem), (void *)&oldEdges);
-    	ciErrNum |= clSetKernelArg(kernel, 6, sizeof(cl_mem), (void *)&oldForces);
-    	ciErrNum |= clSetKernelArg(kernel, 7, sizeof(cl_float), (void *)&deltaTime);
-    	ciErrNum |= clSetKernelArg(kernel, 8, sizeof(cl_float), (void *)&damping);
+    	ciErrNum |= clSetKernelArg(kernel, 3, sizeof(cl_mem), (void *)&newForces);
+    	ciErrNum |= clSetKernelArg(kernel, 4, sizeof(cl_mem), (void *)&oldPositions);
+    	ciErrNum |= clSetKernelArg(kernel, 5, sizeof(cl_mem), (void *)&oldVelocities);
+    	ciErrNum |= clSetKernelArg(kernel, 6, sizeof(cl_mem), (void *)&oldEdges);
+    	ciErrNum |= clSetKernelArg(kernel, 7, sizeof(cl_mem), (void *)&oldForces);
+    	ciErrNum |= clSetKernelArg(kernel, 8, sizeof(cl_float), (void *)&deltaTime);
+    	ciErrNum |= clSetKernelArg(kernel, 9, sizeof(cl_float), (void *)&damping);
 
     	oclCheckError(ciErrNum, CL_SUCCESS);
 
     	// set work-item dimensions
-    	local_work_size[0] = p;
+    	local_work_size[0] = numBodies;
     	local_work_size[1] = q;
     	global_work_size[0]= numBodies;
     	global_work_size[1]= q;

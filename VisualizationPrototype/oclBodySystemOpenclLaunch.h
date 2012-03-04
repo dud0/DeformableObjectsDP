@@ -25,6 +25,15 @@
 
 #include "oclBodySystemOpencl.h"
 
+    class dim3 {
+    	public:
+    		size_t x;
+    		size_t y;
+    		size_t z;
+
+    		dim3(size_t _x=1, size_t _y=1, size_t _z=1) {x = _x; y = _y; z = _z;}
+    	};
+
 int  CreateProgramAndKernel(cl_context ctx, cl_device_id* cdDevices, const char* kernel_name, cl_kernel* kernel, bool bDouble);
 void AllocateNBodyArrays(cl_context ctx, cl_mem* vel, int numBodies, int dFlag);
 void DeleteNBodyArrays(cl_mem* vel);
@@ -43,6 +52,7 @@ void computeExternalForces(cl_command_queue cqCommandQueue,
 		cl_kernel k,
 		cl_mem newForces,
 		cl_mem newFc,
+		cl_mem oldForces,
 		cl_mem oldFc,
 		cl_mem oldVelocities,
 		int numBodies, int p, int q,
@@ -51,6 +61,8 @@ void computeSpringsForces(cl_command_queue cqCommandQueue,
    		cl_kernel k,
    		cl_mem newForces,
    		cl_mem newEdges,
+   		cl_mem newPositions,
+   		cl_mem oldForces,
    		cl_mem oldPositions,
    		cl_mem oldEdges,
    		int numEdges, int p, int q,
@@ -60,6 +72,7 @@ void integrateSystem(cl_command_queue cqCommandQueue,
     		cl_mem newPositions,
     		cl_mem newVelocities,
     		cl_mem newEdges,
+    		cl_mem newForces,
     		cl_mem oldPositions,
     		cl_mem oldVelocities,
     		cl_mem oldEdges,

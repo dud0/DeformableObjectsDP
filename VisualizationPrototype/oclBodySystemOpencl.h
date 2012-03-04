@@ -76,6 +76,7 @@ class BodySystemOpenCL : public BodySystem
         float* m_hForces;
 
         float* tmpF;
+        float* tmpFF;
 
         long t;
 
