@@ -43,7 +43,7 @@ all: VisualizationPrototype
 VisualizationPrototype: $(OBJS) $(USER_OBJS)
 	@echo 'Building target: $@'
 	@echo 'Invoking: GCC C++ Linker'
-	g++ -L/usr/local/lib -L"/home/miki/workspace/CUDA SDK/NVIDIA_GPU/OpenCL/common/lib" -L"/home/miki/workspace/CUDA SDK/NVIDIA_GPU/shared/lib" -L"/home/miki/workspace/CUDA SDK/NVIDIA_GPU/shared/lib/linux" -L/home/dud0/NVIDIA_GPU_Computing_SDK/shared/lib -L/home/dud0/NVIDIA_GPU_Computing_SDK/OpenCL/common/lib -o"VisualizationPrototype" $(OBJS) $(USER_OBJS) $(LIBS)
+	g++ -L/usr/local/lib -L"/home/miki/workspace/CUDA SDK/NVIDIA_GPU/OpenCL/common/lib" -L"/home/miki/workspace/CUDA SDK/NVIDIA_GPU/shared/lib" -L"/home/miki/workspace/CUDA SDK/NVIDIA_GPU/shared/lib/linux" -L/home/dud0/NVIDIA_GPU_Computing_SDK/shared/lib -L/home/dud0/NVIDIA_GPU_Computing_SDK/OpenCL/common/lib -o "VisualizationPrototype" $(OBJS) $(USER_OBJS) $(LIBS)
 	@echo 'Finished building target: $@'
 	@echo ' '
 
