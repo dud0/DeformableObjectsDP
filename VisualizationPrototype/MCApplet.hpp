@@ -68,7 +68,7 @@
 class VisualizationObject: public vl::ActorEventCallback
 {
 public:
-	VisualizationObject(CLManager *clManager, BodySystemOpenCL *nBody, int pointCnt, int offset)
+	VisualizationObject(CLManager *clManager, BodySystemOpenCL *nBody, cl_uint pointCnt, cl_uint offset)
 	{
 		this->clManager = clManager;
 		this->nBody = nBody;
@@ -348,7 +348,7 @@ public:
 		}
 
 		clManager->launch_calcFieldValue(grid, threads,
-				d_volumeData, nBody->getPos(), pointCnt, radius, gridSizeShift, gridSizeMask);
+				d_volumeData, nBody->getPos(), pointCnt, offset, radius, gridSizeShift, gridSizeMask);
 
 		// calculate number of vertices need per voxel
 		clManager->launch_classifyVoxel(grid, threads,

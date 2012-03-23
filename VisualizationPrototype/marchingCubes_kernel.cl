@@ -50,7 +50,7 @@ float calcPointContribution(float4 point, int4 gridPos, float radius)
 
 __kernel
 void
-calcFieldValue(__global float *volumeData, __global float4 *points, uint count, float radius, uint4 gridSizeShift, uint4 gridSizeMask)
+calcFieldValue(__global float *volumeData, __global float4 *points, uint count, uint offset, float radius, uint4 gridSizeShift, uint4 gridSizeMask)
 {
 	int index = get_global_id(0);
 
@@ -69,7 +69,7 @@ calcFieldValue(__global float *volumeData, __global float4 *points, uint count, 
 	maxPoint.y = gridPos.y + radius;
 	maxPoint.z = gridPos.z + radius;	
 
-	for (i=0;i<count;i++)
+	for (i=offset;i<count+offset;i++)
 	{
 		if (points[i].x>=minPoint.x && points[i].y>=minPoint.y && points[i].z>=minPoint.z && points[i].x<=maxPoint.x && points[i].y<=maxPoint.y && points[i].z<=maxPoint.z) {
 			sum+=calcPointContribution(points[i], gridPos, radius);

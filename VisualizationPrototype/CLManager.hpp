@@ -217,13 +217,14 @@ public:
 						   numVoxels);
 	}
 
-	void launch_calcFieldValue(dim3 grid, dim3 threads, cl_mem volumeData, cl_mem points, cl_uint pointCnt, cl_float radius, cl_uint gridSizeShift[4], cl_uint gridSizeMask[4]) {
+	void launch_calcFieldValue(dim3 grid, dim3 threads, cl_mem volumeData, cl_mem points, cl_uint pointCnt, cl_uint offset, cl_float radius, cl_uint gridSizeShift[4], cl_uint gridSizeMask[4]) {
 		clSetKernelArg(calcFieldValueKernel, 0, sizeof(cl_mem), &volumeData);
 		clSetKernelArg(calcFieldValueKernel, 1, sizeof(cl_mem), &points);
 		clSetKernelArg(calcFieldValueKernel, 2, sizeof(cl_uint), &pointCnt);
-		clSetKernelArg(calcFieldValueKernel, 3, sizeof(cl_float), &radius);
-		clSetKernelArg(calcFieldValueKernel, 4, 4 * sizeof(cl_uint), gridSizeShift);
-		clSetKernelArg(calcFieldValueKernel, 5, 4 * sizeof(cl_uint), gridSizeMask);
+		clSetKernelArg(calcFieldValueKernel, 3, sizeof(cl_uint), &offset);
+		clSetKernelArg(calcFieldValueKernel, 4, sizeof(cl_float), &radius);
+		clSetKernelArg(calcFieldValueKernel, 5, 4 * sizeof(cl_uint), gridSizeShift);
+		clSetKernelArg(calcFieldValueKernel, 6, 4 * sizeof(cl_uint), gridSizeMask);
 
 		grid.x *= threads.x;
 		ciErrNum = clEnqueueNDRangeKernel(cqCommandQueue, calcFieldValueKernel, 1, NULL, (size_t*) &grid, (size_t*) &threads, 0, 0, 0);

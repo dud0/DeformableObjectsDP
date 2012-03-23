@@ -190,9 +190,9 @@ REAL3 getFc(int numBodies, REAL4 Fc) {
 		newForces[P1].y += Fs.y;
 		newForces[P1].z += Fs.z;
 	
-		newForces[P2].x -= Fs.x;
+		/*newForces[P2].x -= Fs.x;
 		newForces[P2].y -= Fs.y;
-		newForces[P2].z -= Fs.z;
+		newForces[P2].z -= Fs.z;*/
 	
 		newEdges[index] = oldEdges[index];
 	}
