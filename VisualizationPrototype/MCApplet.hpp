@@ -442,11 +442,26 @@ public:
   // called once after the OpenGL window has been opened
 	void initEvent()
 	{
+		clManager = new CLManager();
+
+		// install our scene manager, we use the SceneManagerActorTree which is the most generic
+		scene_manager = new vl::SceneManagerActorTree;
+		rendering()->as<vl::Rendering>()->sceneManagers()->push_back(scene_manager.get());
+
+		simulationInit();
+
+		addVisualizationObject(1000,0);
+
+		//addVisualizationObject(500,0);
+
+		//addVisualizationObject(500,500);
+	}
+
+	void addVisualizationObject(int pointCnt, int offset) {
 		// allocate the Transform
 		transform = new vl::Transform;
 		// bind the Transform with the transform tree of the rendring pipeline
 		rendering()->as<vl::Rendering>()->transform()->addChild( transform.get() );
-
 
 		// setup the effect to be used to render the cube
 		vl::ref<vl::Effect> effect = new vl::Effect;
@@ -459,7 +474,7 @@ public:
 		// enable the standard OpenGL lighting
 		effect->shader()->enable(vl::EN_LIGHTING);
 
-		vl::ref<vl::GLSLVertexShader> perpixellight_vs = new vl::GLSLVertexShader("./glsl/perpixellight.vs");
+		//vl::ref<vl::GLSLVertexShader> perpixellight_vs = new vl::GLSLVertexShader("./glsl/perpixellight.vs");
 
 		vl::ref<vl::GLSLProgram> glsl = new vl::GLSLProgram;
 		/*glsl->attachShader( perpixellight_vs.get() );
@@ -474,24 +489,15 @@ public:
 
 		effect->shader()->setRenderState(glsl.get());
 
-		// install our scene manager, we use the SceneManagerActorTree which is the most generic
-		vl::ref<vl::SceneManagerActorTree> scene_manager = new vl::SceneManagerActorTree;
-		rendering()->as<vl::Rendering>()->sceneManagers()->push_back(scene_manager.get());
+		VisualizationObject *object = new VisualizationObject(clManager, nbody, pointCnt, offset);
 
-		clManager = new CLManager();
-
-		simulationInit();
-
-		VisualizationObject *object1 = new VisualizationObject(clManager, nbody, 1000, 0);
-
-		vl::ref<vl::Actor> actor=scene_manager->tree()->addActor( object1->getNewGeometry(), effect.get(), transform.get());
-		actor->actorEventCallbacks()->push_back(object1);
+		vl::ref<vl::Actor> actor=scene_manager->tree()->addActor( object->getNewGeometry(), effect.get(), transform.get());
+		actor->actorEventCallbacks()->push_back(object);
 	}
 
 	// called every frame
 	virtual void updateScene()
 	{
-
 		//run kernels to update particle positions
 		nbody->update(m_timestep);
 		printf("%f\n",fps());
@@ -921,6 +927,7 @@ public:
 protected:
 	vl::ref<vl::Transform> transform;
 	CLManager *clManager;
+	vl::ref<vl::SceneManagerActorTree> scene_manager;
 
 	//simulation fields
 	int numBodies;
