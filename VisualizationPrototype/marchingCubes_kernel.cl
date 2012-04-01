@@ -50,14 +50,16 @@ float calcPointContribution(float4 point, int4 gridPos, float radius)
 
 __kernel
 void
-calcFieldValue(__global float *volumeData, __global float4 *points, uint count, uint offset, float radius, uint4 gridSizeShift, uint4 gridSizeMask)
+calcFieldValue(__global float2 *volumeData, __global float4 *points, uint count, uint offset, float radius, uint4 gridSizeShift, uint4 gridSizeMask)
 {
 	int index = get_global_id(0);
 
 	int4 gridPos = calcGridPos(index, gridSizeShift, gridSizeMask);
 
 	int i;
-	float sum=0;
+	float sum=0.0f;
+	float contribution;
+	float colIntensityContribution = 0.0f;
 
 	float4 minPoint, maxPoint;
 
@@ -72,14 +74,23 @@ calcFieldValue(__global float *volumeData, __global float4 *points, uint count, 
 	for (i=offset;i<count+offset;i++)
 	{
 		if (points[i].x>=minPoint.x && points[i].y>=minPoint.y && points[i].z>=minPoint.z && points[i].x<=maxPoint.x && points[i].y<=maxPoint.y && points[i].z<=maxPoint.z) {
-			sum+=calcPointContribution(points[i], gridPos, radius);
+			contribution=calcPointContribution(points[i], gridPos, radius);
+			if (contribution>0.0f) {
+				sum+=contribution;
+				colIntensityContribution+=points[i].w * contribution;
+			}
 		}		
 	}
 
-	volumeData[index]=sum;
+	volumeData[index].x=sum;
+	if (sum == 0.0f) {
+		volumeData[index].y = 0.5f;
+	} else {
+		volumeData[index].y=colIntensityContribution/sum;
+	}
 }
 
-float getFieldValue(__global float *volumeData, int4 gridPos, uint4 gridSizeShift) {
+float2 getFieldValue(__global float2 *volumeData, int4 gridPos, uint4 gridSizeShift) {
 	int index = ((gridPos.x | (gridPos.y << gridSizeShift.y)) | (gridPos.z << gridSizeShift.z));
 	return volumeData[index];
 }
@@ -88,7 +99,7 @@ float getFieldValue(__global float *volumeData, int4 gridPos, uint4 gridSizeShif
 // one thread per voxel
 __kernel
 void
-classifyVoxel(__global uint* voxelVerts, __global uint *voxelOccupied, __global float *volumeData,
+classifyVoxel(__global uint* voxelVerts, __global uint *voxelOccupied, __global float2 *volumeData,
               uint4 gridSize, uint4 gridSizeShift, uint4 gridSizeMask, uint numVoxels,
               float4 voxelSize, float isoValue,  __read_only image2d_t numVertsTex)
 {
@@ -99,14 +110,14 @@ classifyVoxel(__global uint* voxelVerts, __global uint *voxelOccupied, __global 
 
     // read field values at neighbouring grid vertices
     float field[8];
-    field[0] = getFieldValue(volumeData, gridPos, gridSizeShift);
-    field[1] = getFieldValue(volumeData, gridPos + (int4)(1, 0, 0 ,0), gridSizeShift);
-    field[2] = getFieldValue(volumeData, gridPos + (int4)(1, 1, 0 ,0), gridSizeShift);
-    field[3] = getFieldValue(volumeData, gridPos + (int4)(0, 1, 0 ,0), gridSizeShift);
-    field[4] = getFieldValue(volumeData, gridPos + (int4)(0, 0, 1 ,0), gridSizeShift);
-    field[5] = getFieldValue(volumeData, gridPos + (int4)(1, 0, 1 ,0), gridSizeShift);
-    field[6] = getFieldValue(volumeData, gridPos + (int4)(1, 1, 1 ,0), gridSizeShift);
-    field[7] = getFieldValue(volumeData, gridPos + (int4)(0, 1, 1 ,0), gridSizeShift);
+    field[0] = getFieldValue(volumeData, gridPos, gridSizeShift).x;
+    field[1] = getFieldValue(volumeData, gridPos + (int4)(1, 0, 0 ,0), gridSizeShift).x;
+    field[2] = getFieldValue(volumeData, gridPos + (int4)(1, 1, 0 ,0), gridSizeShift).x;
+    field[3] = getFieldValue(volumeData, gridPos + (int4)(0, 1, 0 ,0), gridSizeShift).x;
+    field[4] = getFieldValue(volumeData, gridPos + (int4)(0, 0, 1 ,0), gridSizeShift).x;
+    field[5] = getFieldValue(volumeData, gridPos + (int4)(1, 0, 1 ,0), gridSizeShift).x;
+    field[6] = getFieldValue(volumeData, gridPos + (int4)(1, 1, 1 ,0), gridSizeShift).x;
+    field[7] = getFieldValue(volumeData, gridPos + (int4)(0, 1, 1 ,0), gridSizeShift).x;
 
     // calculate flag indicating if each vertex is inside or outside isosurface
     int cubeindex;
@@ -160,17 +171,19 @@ void vertexInterp2(float isolevel, float4 p0, float4 p1, float4 f0, float4 f1, f
 }
 
 //returns field value and gradient for the given gridPos
-void getFVG(float4 *field,__global float *volumeData, int4 gridPos, uint4 gridSizeShift) {
-	(*field).w = getFieldValue(volumeData, gridPos, gridSizeShift);
-	(*field).x = -getFieldValue(volumeData, gridPos + (int4)(1, 0, 0 ,0), gridSizeShift) + getFieldValue(volumeData, gridPos - (int4)(1, 0, 0 ,0), gridSizeShift);
-	(*field).y = -getFieldValue(volumeData, gridPos + (int4)(0, 1, 0 ,0), gridSizeShift) + getFieldValue(volumeData, gridPos - (int4)(0, 1, 0 ,0), gridSizeShift);
-	(*field).z = -getFieldValue(volumeData, gridPos + (int4)(0, 0, 1 ,0), gridSizeShift) + getFieldValue(volumeData, gridPos - (int4)(0, 0, 1 ,0), gridSizeShift);
+void getFVG(float4 *field,float4 *gridPoint, __global float2 *volumeData, int4 gridPos, uint4 gridSizeShift) {
+	float2 fieldValue = getFieldValue(volumeData, gridPos, gridSizeShift);
+	(*field).w = fieldValue.x;
+	(*field).x = -getFieldValue(volumeData, gridPos + (int4)(1, 0, 0 ,0), gridSizeShift).x + getFieldValue(volumeData, gridPos - (int4)(1, 0, 0 ,0), gridSizeShift).x;
+	(*field).y = -getFieldValue(volumeData, gridPos + (int4)(0, 1, 0 ,0), gridSizeShift).x + getFieldValue(volumeData, gridPos - (int4)(0, 1, 0 ,0), gridSizeShift).x;
+	(*field).z = -getFieldValue(volumeData, gridPos + (int4)(0, 0, 1 ,0), gridSizeShift).x + getFieldValue(volumeData, gridPos - (int4)(0, 0, 1 ,0), gridSizeShift).x;
+	(*gridPoint).w = fieldValue.y;
 }
 
 __kernel
 void
 generateTriangles2(__global float4 *pos, __global float *norm, __global uint *compactedVoxelArray, __global uint *numVertsScanned, 
-                   __global float *volumeData,
+                   __global float2 *volumeData,
                    uint4 gridSize, uint4 gridSizeShift, uint4 gridSizeMask,
                    float4 voxelSize, float isoValue, uint activeVoxels, uint maxVerts, 
                    __read_only image2d_t numVertsTex, __read_only image2d_t triTex)
@@ -205,14 +218,15 @@ generateTriangles2(__global float4 *pos, __global float *norm, __global uint *co
     v[7] = p + (float4)(0, voxelSize.y, voxelSize.z,0);
 
     float4 field[8];
-    getFVG(&field[0], volumeData, gridPos, gridSizeShift);
-    getFVG(&field[1], volumeData, gridPos + (int4)(1, 0, 0 ,0), gridSizeShift);
-    getFVG(&field[2], volumeData, gridPos + (int4)(1, 1, 0 ,0), gridSizeShift);
-    getFVG(&field[3], volumeData, gridPos + (int4)(0, 1, 0 ,0), gridSizeShift);
-    getFVG(&field[4], volumeData, gridPos + (int4)(0, 0, 1 ,0), gridSizeShift);
-    getFVG(&field[5], volumeData, gridPos + (int4)(1, 0, 1 ,0), gridSizeShift);
-    getFVG(&field[6], volumeData, gridPos + (int4)(1, 1, 1 ,0), gridSizeShift);
-    getFVG(&field[7], volumeData, gridPos + (int4)(0, 1, 1 ,0), gridSizeShift);
+    float densityField[8];
+    getFVG(&field[0], &v[0], volumeData, gridPos, gridSizeShift);
+    getFVG(&field[1], &v[1], volumeData, gridPos + (int4)(1, 0, 0 ,0), gridSizeShift);
+    getFVG(&field[2], &v[2], volumeData, gridPos + (int4)(1, 1, 0 ,0), gridSizeShift);
+    getFVG(&field[3], &v[3], volumeData, gridPos + (int4)(0, 1, 0 ,0), gridSizeShift);
+    getFVG(&field[4], &v[4], volumeData, gridPos + (int4)(0, 0, 1 ,0), gridSizeShift);
+    getFVG(&field[5], &v[5], volumeData, gridPos + (int4)(1, 0, 1 ,0), gridSizeShift);
+    getFVG(&field[6], &v[6], volumeData, gridPos + (int4)(1, 1, 1 ,0), gridSizeShift);
+    getFVG(&field[7], &v[7], volumeData, gridPos + (int4)(0, 1, 1 ,0), gridSizeShift);
 
     // recalculate flag
     int cubeindex;
@@ -253,14 +267,17 @@ generateTriangles2(__global float4 *pos, __global float *norm, __global uint *co
         uint edge;
         edge = read_imageui(triTex, tableSampler, (int2)(i,cubeindex)).x;
         v[0] = vertlist[edge];
+        //v[0].w = 0.0f;
 	n[0] = normlist[edge];
 
         edge = read_imageui(triTex, tableSampler, (int2)(i+1,cubeindex)).x;
         v[1] = vertlist[edge];
+        //v[1].w = 0.5f;
 	n[1] = normlist[edge];
 
         edge = read_imageui(triTex, tableSampler, (int2)(i+2,cubeindex)).x;
         v[2] = vertlist[edge];
+        //v[2].w = 0.9f;
 	n[2] = normlist[edge];
 
         // calculate triangle surface normal

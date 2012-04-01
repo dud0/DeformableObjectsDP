@@ -48,6 +48,7 @@
 #include <vlGraphics/Effect.hpp>
 #include <vlGraphics/Light.hpp>
 #include <vlGraphics/GLSL.hpp>
+#include <vlGraphics/DepthSortCallback.hpp>
 
 #include <math.h>
 #include <memory>
@@ -60,6 +61,8 @@
 #include <GL/glx.h>
 
 #include "CLManager.hpp"
+
+#include "Perlin/perlin.c"
 
 #define SCALE 5
 
@@ -87,7 +90,7 @@ public:
 		totalVerts   = 0;
 
 
-		radius = 4.5f;
+		radius = 3.0f;
 
 		isoValue = 0.5f;
 
@@ -328,7 +331,7 @@ public:
 		d_voxelOccupied = clCreateBuffer(clManager->cxGPUContext, CL_MEM_READ_WRITE, memSize, 0, &(clManager->ciErrNum));
 		d_voxelOccupiedScan = clCreateBuffer(clManager->cxGPUContext, CL_MEM_READ_WRITE, memSize, 0, &(clManager->ciErrNum));
 		d_compVoxelArray = clCreateBuffer(clManager->cxGPUContext, CL_MEM_READ_WRITE, memSize, 0, &(clManager->ciErrNum));
-		d_volumeData = clCreateBuffer(clManager->cxGPUContext, CL_MEM_READ_WRITE, sizeof(float)*numVoxels, 0, &(clManager->ciErrNum));
+		d_volumeData = clCreateBuffer(clManager->cxGPUContext, CL_MEM_READ_WRITE, sizeof(float)*numVoxels*2, 0, &(clManager->ciErrNum));
 	}
 
 
@@ -448,6 +451,8 @@ public:
 		scene_manager = new vl::SceneManagerActorTree;
 		rendering()->as<vl::Rendering>()->sceneManagers()->push_back(scene_manager.get());
 
+		//addBorders();
+
 		simulationInit();
 
 		addVisualizationObject(1000,0);
@@ -495,9 +500,76 @@ public:
 		actor->actorEventCallbacks()->push_back(object);
 	}
 
+	void addBorders()
+	{
+		transform = new vl::Transform;
+		rendering()->as<vl::Rendering>()->transform()->addChild( transform.get() );
+
+		vl::ref<vl::Geometry> cube = makeBox( vl::vec3(0.0f,0.0f,0.0f), 2.0f, 2.0f, 2.0f );
+		cube->computeNormals();
+		cube->computeBounds();
+
+		/* define the Effect to be used */
+		    vl::ref<vl::Effect> effect = new vl::Effect;
+		    /* enable depth test and lighting */
+		    effect->shader()->enable(vl::EN_DEPTH_TEST);
+		    /* enable lighting and material properties */
+		    effect->shader()->setRenderState( new vl::Light, 0 );
+		    effect->shader()->enable(vl::EN_LIGHTING);
+		    effect->shader()->gocMaterial()->setDiffuse( vl::fvec4(1.0f,1.0f,1.0f,1.0f) );
+		    effect->shader()->gocMaterial()->setTransparency(0.5);
+		    effect->shader()->gocLightModel()->setTwoSide(true);
+		    /* enable alpha blending */
+		    effect->shader()->enable(vl::EN_BLEND);
+
+		bordersActor = scene_manager->tree()->addActor( cube.get(), effect.get(), transform.get()  );
+		bordersActor->actorEventCallbacks()->push_back( new vl::DepthSortCallback );
+
+	}
+
+	vl::ref<vl::Geometry> makeBox( const vl::vec3& origin, vl::real xside, vl::real yside, vl::real zside)
+		{
+		vl::ref<vl::Geometry> geom = new vl::Geometry;
+	   geom->setObjectName("Box");
+
+	   vl::ref<vl::ArrayFloat3> vert3 = new vl::ArrayFloat3;
+	   geom->setVertexArray(vert3.get());
+
+	   vl::real x=xside/2.0f;
+	   vl::real y=yside/2.0f;
+	   vl::real z=zside/2.0f;
+
+	   vl::fvec3 a0( (vl::fvec3)(vl::vec3(+x,+y,+z) + origin) );
+	   vl::fvec3 a1( (vl::fvec3)(vl::vec3(-x,+y,+z) + origin) );
+	   vl::fvec3 a2( (vl::fvec3)(vl::vec3(-x,-y,+z) + origin) );
+	   vl::fvec3 a3( (vl::fvec3)(vl::vec3(+x,-y,+z) + origin) );
+	   vl::fvec3 a4( (vl::fvec3)(vl::vec3(+x,+y,-z) + origin) );
+	   vl::fvec3 a5( (vl::fvec3)(vl::vec3(-x,+y,-z) + origin) );
+	   vl::fvec3 a6( (vl::fvec3)(vl::vec3(-x,-y,-z) + origin) );
+	   vl::fvec3 a7( (vl::fvec3)(vl::vec3(+x,-y,-z) + origin) );
+
+
+
+	   vl::fvec3 verts[] = {
+	     a1, a2, a3, a3, a0, a1,
+	     a2, a6, a7, a7, a3, a2,
+	     a6, a5, a4, a4, a7, a6,
+	     a5, a1, a0, a0, a4, a5,
+	     a0, a3, a7, a7, a4, a0,
+	     a5, a6, a2, a2, a1, a5
+	   };
+
+	   vl::ref<vl::DrawArrays> polys = new vl::DrawArrays(vl::PT_TRIANGLES, 0, 36);
+	   geom->drawCalls()->push_back( polys.get() );
+	   vert3->resize( 36 );
+	  memcpy(vert3->ptr(), verts, sizeof(verts));
+	   return geom;
+	 }
+
 	// called every frame
 	virtual void updateScene()
 	{
+		//bordersActor->actorEventCallbacks()->push_back( new vl::DepthSortCallback );
 		//run kernels to update particle positions
 		nbody->update(m_timestep);
 		printf("%f\n",fps());
@@ -870,6 +942,8 @@ public:
 
 			//shrLog("tmpNUM: %f, tmpINC: %f, sucin: %f\n\n", tmpNUM, tmpINC, tmpNUM*tmpINC);
 
+			srand ( time(NULL) );
+
 			for (i = 10; i < ((tmpNUM*tmpINC)-0.001)+10; i += tmpINC) {
 				for (j = 10; j < ((tmpNUM*tmpINC)-0.001)+10; j += tmpINC) {
 					for (k = 10 ; k < ((tmpNUM*tmpINC)-0.001)+10; k += tmpINC) {
@@ -885,7 +959,9 @@ public:
 						pos[p++] = k;
 						force[p] = 1.0f;
 						forces[p] = 0.0f;
-						pos[p++] = 1.0f;
+						//pos[p++] = (rand() % 100+1) /100.0f;
+						pos[p++] = (PerlinNoise3D(i,j,k,1.5f,2.0f,5)+1.0f)/2.0f;
+						printf("random: %f\n", pos[p-1]);
 
 						vel[v++] = 0.0f;
 						vel[v++] = 0.0f;
@@ -928,6 +1004,7 @@ protected:
 	vl::ref<vl::Transform> transform;
 	CLManager *clManager;
 	vl::ref<vl::SceneManagerActorTree> scene_manager;
+	vl::ref<vl::Actor> bordersActor;
 
 	//simulation fields
 	int numBodies;

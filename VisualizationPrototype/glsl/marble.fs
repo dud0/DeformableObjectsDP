@@ -18,6 +18,7 @@
 
 varying float LightIntensity;
 varying vec3 MCposition;
+varying float density;
 
 float snoise(vec3 v);
 
@@ -29,33 +30,44 @@ void main(void)
 	// const float base_freq = 0.0004; // CAT
 	// const float base_freq = 1.0; // COW
 	// const float base_freq = 1.5; // HORSE
-	// const float base_freq = 7.3; // DRAGON
-	// const float base_freq = 1.5; // CANE
+	//const float base_freq = 7.3; // DRAGON
+	 const float base_freq = 1.5; // CANE
 	// const float base_freq = 0.2; // HAND
 	// const float base_freq = 1.5; // RINO
-	const float base_freq = 0.2; // SPIDER
+	//const float base_freq = 0.2; // SPIDER
 
 
-	vec4 noisevec;
-	noisevec.x = snoise(MCposition * base_freq*1.0) * 8.0;
-	noisevec.y = snoise(MCposition * base_freq*2.0) * 4.0;
-	noisevec.z = snoise(MCposition * base_freq*4.0) * 2.0;
-	noisevec.w = snoise(MCposition * base_freq*8.0) * 1.0;
+	//vec4 noisevec;
+	//noisevec.x = snoise(density * base_freq*1.0) * 8.0;
+	//noisevec.y = snoise(density * base_freq*2.0) * 4.0;
+	//noisevec.z = snoise(density * base_freq*4.0) * 2.0;
+	//noisevec.w = snoise(density * base_freq*8.0) * 1.0;
 	// noisevec = (noisevec / 8.0 + 1.0) / 2.0;
-	noisevec = noisevec / 8.0;
+	//noisevec = noisevec / 8.0;
 	// noisevec = noisevec * noisevec;
 
-	float intensity = abs(noisevec[0] - 0.20) + 
-	                  abs(noisevec[1] - 0.10) + 
-					  abs(noisevec[2] - 0.05) +
-					  abs(noisevec[3] - 0.025);
+	//density/=20.0;
+	float intensity = 0.0;
+
+	//float intensity = abs(noisevec[0] - 0.20) + 
+	//                  abs(noisevec[1] - 0.10) + 
+	//				  abs(noisevec[2] - 0.05) +
+	//				  abs(noisevec[3] - 0.025);
+
+	
 	
 	// intensity = intensity *  intensity;
 	// intensity -= 0.3;
 	
-	intensity = clamp(intensity * 1.4, 0.0, 1.0);
+	//intensity = clamp(intensity * 1.4, 0.0, 1.0);
+
+	if (density>0.6 && density < 0.7) {
+		intensity = 1.0;
+	}
+
+	density = clamp(density, 0.0, 1.0);
 	
-	vec3 color = mix(Color1, Color2, intensity) * LightIntensity;
+	vec3 color = mix(Color1, Color2, density) * LightIntensity;
 	gl_FragColor = vec4(color, 1.0);
 }
 

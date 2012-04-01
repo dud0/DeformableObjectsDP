@@ -13,14 +13,18 @@
 
 varying float LightIntensity;
 varying vec3 MCposition;
+varying float density;
 
 void main(void)
 {
 	vec3 LightPos = gl_LightSource[0].position.xyz;
+	
+	density = gl_Vertex.w;
 
 	const float Scale = 6.2; // mic fixme: remove this
 	MCposition = gl_Vertex.xyz * Scale;
 
+	gl_Vertex.w = 1;
 	vec3 ECposition = vec3(gl_ModelViewMatrix * gl_Vertex);
 	vec3 tnorm = normalize(vec3(gl_NormalMatrix * gl_Normal));
 	LightIntensity = dot(normalize(LightPos - ECposition), tnorm) * 1.5;
