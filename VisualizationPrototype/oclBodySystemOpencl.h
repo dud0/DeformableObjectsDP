@@ -67,8 +67,10 @@ class BodySystemOpenCL : public BodySystem
         cl_kernel extFor_kernel;
         cl_kernel sprFor_kernel;
         cl_kernel intBod_kernel;
+        cl_kernel intVer_kernel;
 
         // CPU data
+        float* m_hOldPos;
         float* m_hPos;
         float* m_hVel;
         float* m_hF;
@@ -82,6 +84,7 @@ class BodySystemOpenCL : public BodySystem
 
         // GPU data
         cl_mem m_dPos[2];
+        cl_mem m_dOldPos[2];
         cl_mem m_dVel[2];
         cl_mem m_dF[2];
         cl_mem m_dEdge[2];

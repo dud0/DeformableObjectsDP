@@ -47,7 +47,7 @@
     
     // predpokladame, ze mass castice je 1, G je 9.823
     Fg.x = 0;
-    Fg.y = /*9.82300*/0.0;
+    Fg.y = /*-9.823*/0.0;
     Fg.z = 0;
 	
 	return Fg;
@@ -67,7 +67,7 @@ REAL3 getFd(int numBodies, REAL4 bodyVel) {
     unsigned int numTiles = numBodies / mul24(blockDimx, blockDimy);
     
     //koeficient odporu vzduchu som si urcil ako 0.3
-    /*Fd.x = -0.3*bodyVel.x;
+   /* Fd.x = -0.3*bodyVel.x;
     Fd.y = -0.3*bodyVel.y;
     Fd.z = -0.3*bodyVel.z;
 	*/
@@ -121,20 +121,24 @@ REAL3 getFc(int numBodies, REAL4 Fc) {
     
 	unsigned int index = mul24(blockIdxx, blockDimx) + threadIdxx;
     
-    Fg = getFg(numBodies);
-    Fd = getFd(numBodies, velocities[index]);
-    Fc = getFc(numBodies, Fc_a[index]);
+    if (oldForces[index].w == 0) {
+    	return;
+    } 
+    else {
+    	Fg = getFg(numBodies);
+    	Fd = getFd(numBodies, velocities[index]);
+   		Fc = getFc(numBodies, Fc_a[index]);
    
-    Fsum.x = Fg.x + Fd.x + Fc.x;
-    Fsum.y = Fg.y + Fd.y + Fc.y;
-    Fsum.z = Fg.z + Fd.z + Fc.z;
-    Fsum.w = 1;
+    	Fsum.x = Fg.x + Fd.x + Fc.x;
+    	Fsum.y = Fg.y + Fd.y + Fc.y;
+    	Fsum.z = Fg.z + Fd.z + Fc.z;
+    	Fsum.w = 1;
    
-    newForces[index] = Fsum;
-    newFc[index] = Fc_a[index];
+    	newForces[index] = Fsum;
+    	newFc[index] = Fc_a[index];
  	
- 	//oldForces[index] = newForces[index];
- 
+ 		//oldForces[index] = newForces[index];
+ 	}
  }
  
  __kernel void springsForces(__global REAL4* newForces,
@@ -162,13 +166,13 @@ REAL3 getFc(int numBodies, REAL4 Fc) {
     }
     else {
     
-    	REAL Ks = 20;
+    	REAL Ks = 40;
    
    		REAL restL = oldEdges[index].z;
    
-   		int P1 = 0, P2 = 0; 
-		P1 = oldEdges[index].x;
-		P2 = oldEdges[index].y;
+   		//int P1 = 0, P2 = 0; 
+		int P1 = oldEdges[index].x;
+		int P2 = oldEdges[index].y;
 	
 		REAL3 tmpVec = ZERO3;
 		tmpVec.x = oldPositions[P1].x - oldPositions[P2].x;
@@ -178,21 +182,27 @@ REAL3 getFc(int numBodies, REAL4 Fc) {
   		REAL vectorLength;
   		vectorLength = sqrt(tmpVec.x*tmpVec.x + tmpVec.y*tmpVec.y + tmpVec.z*tmpVec.z);
     	
+    	if (vectorLength >= restL*3) {
+    		oldEdges[index].w = 0;
+    	}
+    	
+    	if (vectorLength >= restL*2) {
+    		oldEdges[index].z = restL*2;
+    	}
+    	
     	// vypocitame Fs
     	REAL3 Fs = ZERO3;
     	Fs.x = Ks * (restL - vectorLength) * (tmpVec.x / vectorLength);
     	Fs.y = Ks * (restL - vectorLength) * (tmpVec.y / vectorLength);
     	Fs.z = Ks * (restL - vectorLength) * (tmpVec.z / vectorLength);    
    
-
-   
 		newForces[P1].x += Fs.x;
 		newForces[P1].y += Fs.y;
 		newForces[P1].z += Fs.z;
-	
-		/*newForces[P2].x -= Fs.x;
+
+		newForces[P2].x -= Fs.x;
 		newForces[P2].y -= Fs.y;
-		newForces[P2].z -= Fs.z;*/
+		newForces[P2].z -= Fs.z;
 	
 		newEdges[index] = oldEdges[index];
 	}
@@ -208,17 +218,6 @@ REAL3 getFc(int numBodies, REAL4 Fc) {
             __global REAL4* oldForces,
             REAL deltaTime,
             REAL damping) {
- 
- 	/*unsigned int threadIdxx = get_local_id(0);
-    unsigned int threadIdxy = get_local_id(1);
-    unsigned int blockIdxx = get_group_id(0);
-    unsigned int blockIdxy = get_group_id(1);
-    unsigned int gridDimx = get_num_groups(0);
-    unsigned int blockDimx = get_local_size(0);
-    unsigned int blockDimy = get_local_size(1);
-
-    unsigned int index = mul24(blockIdxx, blockDimx) + threadIdxx;
-    */
     
     unsigned int index = get_global_id(0);   
     
@@ -226,36 +225,67 @@ REAL3 getFc(int numBodies, REAL4 Fc) {
     REAL4 vel = oldVel[index];  
     REAL3 accel = ZERO3;
 
-    // acceleration = force \ mass;
-    // mass is 1
-    REAL mass;
-    mass = 1;
+	if (pos.w == 0) {
+		return;
+	}
+	else {
+    	// acceleration = force \ mass;
+    	// mass is 1
+    	REAL mass;
+    	mass = 1;
     
-    accel.x = oldForces[index].x / mass;
-    accel.y = oldForces[index].y / mass;
-    accel.z = oldForces[index].z / mass;
-    
-     
-    // new velocity = old velocity + acceleration * deltaTime
-    // note we factor out the body's mass from the equation, here and in bodyBodyInteraction 
-    // (because they cancel out).  Thus here force == acceleration
+    	accel.x = oldForces[index].x / mass;
+    	accel.y = oldForces[index].y / mass;
+    	accel.z = oldForces[index].z / mass;
        
-    vel.x += accel.x * deltaTime;
-    vel.y += accel.y * deltaTime;
-    vel.z += accel.z * deltaTime;  
+    	vel.x += accel.x * deltaTime;
+    	vel.y += accel.y * deltaTime;
+    	vel.z += accel.z * deltaTime;  
 
-   	vel.x *= damping;
-    vel.y *= damping;
-    vel.z *= damping;
+   		vel.x *= damping;
+    	vel.y *= damping;
+    	vel.z *= damping;
         
-    // new position = old position + velocity * deltaTime
-    pos.x += vel.x * deltaTime;
-    pos.y += vel.y * deltaTime;
-    pos.z += vel.z * deltaTime;
+    	// new position = old position + velocity * deltaTime
+    	pos.x += vel.x * deltaTime;
+    	pos.y += vel.y * deltaTime;
+    	pos.z += vel.z * deltaTime;
 
-    // store new position and velocity
-    newPos[index] = pos;
-    newVel[index] = vel;
-    //newForces[index] = oldForces[index];
+    	// store new position and velocity
+    	newPos[index] = pos;
+    	newVel[index] = vel;
+    	//newForces[index] = oldForces[index];
+    }
+ }
+ 
+ __kernel void integrateVerlet(__global REAL4* newPos, __global REAL4* oldPos, __global REAL4* newBeforePos, __global REAL4* oldBeforePos, __global REAL4* oldForces, REAL deltaTime) {
+ 
+ 
+	unsigned int index = get_global_id(0);
+	
+	REAL4 xOld = oldBeforePos[index];
+	REAL4 xNew = oldPos[index];
+	REAL3 accel = ZERO3;
+	REAL mass = 1;
+ 
+ 	if (xOld.w == 0) {
+ 		return;
+ 	}
+ 	else {
+ 		accel.x = oldForces[index].x / mass;
+ 		accel.y = oldForces[index].y / mass;
+ 		accel.z = oldForces[index].z / mass;
+ 	
+ 		xNew.x = (2 * oldPos[index].x) - oldBeforePos[index].x + (accel.x * (deltaTime*deltaTime));
+ 		xNew.y = (2 * oldPos[index].y) - oldBeforePos[index].y + (accel.y * (deltaTime*deltaTime));
+ 		xNew.z = (2 * oldPos[index].z) - oldBeforePos[index].z + (accel.z * (deltaTime*deltaTime));
+ 	
+ 		xOld.x = oldPos[index].x;
+ 		xOld.y = oldPos[index].y;
+ 		xOld.z = oldPos[index].z;
+ 	
+ 		newPos[index] = xNew;
+ 		newBeforePos[index] = xOld;
+ 	}
  }
  

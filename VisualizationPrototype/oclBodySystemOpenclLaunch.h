@@ -81,6 +81,17 @@ void integrateSystem(cl_command_queue cqCommandQueue,
     		int numBodies, int p, int q,
     		bool bDouble);
 
+void integrateSystemVerlet(cl_command_queue cqCommandQueue,
+        		cl_kernel k,
+        		cl_mem newPositions,
+        		cl_mem oldPositions,
+        		cl_mem newBeforePos,
+        		cl_mem oldBeforePos,
+        		cl_mem oldForces,
+        		float deltaTime,
+        		int numBodies, int p, int q,
+        		bool bDouble);
+
 void CopyArrayFromDevice(int __size, cl_command_queue cmdq, float *host, cl_mem device, cl_mem pboCL, int numBodies, bool bDouble);
 void CopyArrayToDevice(int __size, cl_command_queue cmdq, cl_mem device, const float *host, int numBodies, bool bDouble);
 cl_mem RegisterGLBufferObject(cl_context ctx, unsigned int pboGL);

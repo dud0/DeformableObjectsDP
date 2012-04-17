@@ -1,0 +1,112 @@
+Visualization Library v2011.9.1162 [f32]
+Feb 12 2012 - 14:28:16 - GCC compiler [DEBUG] [x64]
+
+ --- Environment ---
+VL_LOGFILE_PATH <not present>
+VL_DATA_PATH <not present>
+VL_VERBOSITY_LEVEL <not present>
+VL_CHECK_GL_STATES <not present>
+
+ --- Global Settings --- 
+Log file  = log.txt
+Data path = ../data
+Verbosity level = NORMAL
+Check OpenGL States = YES
+
+./glsl/noise.vs
+0(27) : warning C7564: assignment to attribute gl_Vertex
+0(27) : warning C7011: implicit cast from "int" to "float"
+0(27) : warning C7564: assignment to attribute gl_Vertex
+
+
+./glsl/marble.fs
+0(68) : warning C7565: assignment to varying in density
+0(68) : warning C7565: assignment to varying in density
+
+
+./glsl/noise.vs
+0(27) : warning C7564: assignment to attribute gl_Vertex
+0(27) : warning C7011: implicit cast from "int" to "float"
+0(27) : warning C7564: assignment to attribute gl_Vertex
+
+
+./glsl/marble.fs
+0(68) : warning C7565: assignment to varying in density
+0(68) : warning C7565: assignment to varying in density
+
+
+./glsl/noise.vs
+0(27) : warning C7564: assignment to attribute gl_Vertex
+0(27) : warning C7011: implicit cast from "int" to "float"
+0(27) : warning C7564: assignment to attribute gl_Vertex
+
+
+./glsl/marble.fs
+0(68) : warning C7565: assignment to varying in density
+0(68) : warning C7565: assignment to varying in density
+
+
+vl::GLSLProgram
+Vertex info
+-----------
+0(27) : warning C7564: assignment to attribute gl_Vertex
+0(27) : warning C7011: implicit cast from "int" to "float"
+0(27) : warning C7564: assignment to attribute gl_Vertex
+0(27) : warning C7564: assignment to attribute gl_Vertex
+0(27) : warning C7564: assignment to attribute gl_Vertex
+0(27) : warning C7564: assignment to attribute gl_Vertex
+0(27) : warning C7504: OpenGL does not allow writing to input variable 'gl_Vertex'
+
+Fragment info
+-------------
+0(68) : warning C7565: assignment to varying in density
+0(68) : warning C7565: assignment to varying in density
+0(68) : warning C7565: assignment to varying in density
+0(68) : warning C7565: assignment to varying in density
+0(68) : warning C7565: assignment to varying in density
+0(68) : warning C7504: OpenGL does not allow writing to input variable 'density'
+
+
+vl::GLSLProgram
+Vertex info
+-----------
+0(27) : warning C7564: assignment to attribute gl_Vertex
+0(27) : warning C7011: implicit cast from "int" to "float"
+0(27) : warning C7564: assignment to attribute gl_Vertex
+0(27) : warning C7564: assignment to attribute gl_Vertex
+0(27) : warning C7564: assignment to attribute gl_Vertex
+0(27) : warning C7564: assignment to attribute gl_Vertex
+0(27) : warning C7504: OpenGL does not allow writing to input variable 'gl_Vertex'
+
+Fragment info
+-------------
+0(68) : warning C7565: assignment to varying in density
+0(68) : warning C7565: assignment to varying in density
+0(68) : warning C7565: assignment to varying in density
+0(68) : warning C7565: assignment to varying in density
+0(68) : warning C7565: assignment to varying in density
+0(68) : warning C7504: OpenGL does not allow writing to input variable 'density'
+
+
+vl::GLSLProgram
+Vertex info
+-----------
+0(27) : warning C7564: assignment to attribute gl_Vertex
+0(27) : warning C7011: implicit cast from "int" to "float"
+0(27) : warning C7564: assignment to attribute gl_Vertex
+0(27) : warning C7564: assignment to attribute gl_Vertex
+0(27) : warning C7564: assignment to attribute gl_Vertex
+0(27) : warning C7564: assignment to attribute gl_Vertex
+0(27) : warning C7504: OpenGL does not allow writing to input variable 'gl_Vertex'
+
+Fragment info
+-------------
+0(68) : warning C7565: assignment to varying in density
+0(68) : warning C7565: assignment to varying in density
+0(68) : warning C7565: assignment to varying in density
+0(68) : warning C7565: assignment to varying in density
+0(68) : warning C7565: assignment to varying in density
+0(68) : warning C7504: OpenGL does not allow writing to input variable 'density'
+
+
+Visualization Library shutdown.

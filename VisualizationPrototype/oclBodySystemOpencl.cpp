@@ -12,6 +12,7 @@ BodySystemOpenCL::BodySystemOpenCL(int numBodies, int numEdges, cl_device_id dev
   cxContext(ctx),
   cqCommandQueue(cmdq),
   m_hPos(0),
+  m_hOldPos(0),
   m_hVel(0),
   m_hF(0),
   m_hForces(0),
@@ -25,6 +26,7 @@ BodySystemOpenCL::BodySystemOpenCL(int numBodies, int numEdges, cl_device_id dev
 {
 	t=0;
     m_dPos[0] = m_dPos[1] = 0;
+    m_dOldPos[0] = m_dOldPos[1] = 0;
     m_dVel[0] = m_dVel[1] = 0;
     m_dF[0] = m_dF[1] = 0;
     m_dEdge[0] = m_dEdge[1] = 0;
@@ -52,6 +54,12 @@ BodySystemOpenCL::BodySystemOpenCL(int numBodies, int numEdges, cl_device_id dev
     	exit(shrLogEx(LOGBOTH | CLOSELOG, -1, "integrateBodies ", STDERROR));
     }
 
+    shrLog("\nCreateProgramAndkernel INTEGRATE VERLET...");
+    if (CreateProgramAndKernel(ctx, &dev, "integrateVerlet", &intVer_kernel, m_bDouble))
+    {
+    	exit(shrLogEx(LOGBOTH | CLOSELOG, -1, "integrateVerlet ", STDERROR));
+    }
+
     setSoftening(0.00125f);
     setDamping(0.995f);   
 }
@@ -70,12 +78,14 @@ void BodySystemOpenCL::_initialize(int numBodies, int numEdges)
     m_numBodies = numBodies;
     m_numEdges = numEdges;
 
+    m_hOldPos = new float[m_numBodies*4];
     m_hPos = new float[m_numBodies*4];
     m_hVel = new float[m_numBodies*4];
     m_hF = new float[m_numBodies*4];
     m_hEdge = new float[m_numEdges*4];
     m_hForces = new float[m_numBodies*4];
 
+    memset(m_hOldPos, 0, m_numBodies*4*sizeof(float));
     memset(m_hPos, 0, m_numBodies*4*sizeof(float));
     memset(m_hVel, 0, m_numBodies*4*sizeof(float));
     memset(m_hF, 0, m_numBodies*4*sizeof(float));
@@ -109,6 +119,9 @@ void BodySystemOpenCL::_initialize(int numBodies, int numEdges)
         shrLog("\nAllocateNBodyArrays m_dPos\n"); 
     }
     
+    AllocateNBodyArrays(cxContext, m_dOldPos, m_numBodies, m_bDouble);
+    shrLog("\nAllocateNBodyArrays m_dOldPos\n");
+
     AllocateNBodyArrays(cxContext, m_dVel, m_numBodies, m_bDouble);
     shrLog("\nAllocateNBodyArrays m_dVel\n"); 
 
@@ -129,6 +142,7 @@ void BodySystemOpenCL::_finalize()
     oclCheckError(m_bInitialized, shrTRUE);
 
     delete [] m_hPos;
+    delete [] m_hOldPos;
     delete [] m_hVel;
     delete [] m_hForces;
     delete [] m_hF;
@@ -142,6 +156,7 @@ void BodySystemOpenCL::_finalize()
     DeleteNBodyArrays(m_dF);
     DeleteNBodyArrays(m_dEdge);
     DeleteNBodyArrays(m_dForces);
+    DeleteNBodyArrays(m_dOldPos);
     if (m_bUsePBO)
     {
         UnregisterGLBufferObject(m_pboCL[0]);
@@ -166,133 +181,6 @@ void BodySystemOpenCL::setDamping(float damping)
 
 void BodySystemOpenCL::update(float deltaTime)
 {
-	t++;
-	/*bool cont = true;
-
-	if (t == 200) {
-		tmpF = getArray(BODYSYSTEM_F);
-		for(int i=0; i<m_numBodies*4; i++) {
-			tmpF[i] = 0;
-		}
-		setArray(BODYSYSTEM_F, tmpF);
-	}
-
-	else if (t == 400) {
-		tmpF = getArray(BODYSYSTEM_F);
-		for(int i=0; i<m_numBodies*4; i++) {
-			tmpF[i] = 0;
-		}
-		tmpF[0*4+1] = -30.0f;
-		tmpF[1*4+1] = -30.0f;
-		tmpF[2*4+1] = -30.0f;
-		tmpF[9*4+1] = -30.0f;
-		tmpF[10*4+1] = -30.0f;
-		tmpF[11*4+1] = -30.0f;
-		tmpF[18*4+1] = -30.0f;
-		tmpF[19*4+1] = -30.0f;
-		tmpF[20*4+1] = -30.0f;
-		setArray(BODYSYSTEM_F, tmpF);
-	}
-
-	else if (t == 700) {
-		tmpF = getArray(BODYSYSTEM_F);
-		for(int i=0; i<m_numBodies*4; i++) {
-			tmpF[i] = 0;
-		}
-		setArray(BODYSYSTEM_F, tmpF);
-	}
-
-	else if (t == 900) {
-		tmpF = getArray(BODYSYSTEM_F);
-		for(int i=0; i<m_numBodies*4; i++) {
-			tmpF[i] = 0;
-		}
-		tmpF[6*4+1] = 30.0f;
-		tmpF[7*4+1] = 30.0f;
-		tmpF[8*4+1] = 30.0f;
-		tmpF[15*4+1] = 30.0f;
-		tmpF[16*4+1] = 30.0f;
-		tmpF[17*4+1] = 30.0f;
-		tmpF[24*4+1] = 30.0f;
-		tmpF[25*4+1] = 30.0f;
-		tmpF[26*4+1] = 30.0f;
-		setArray(BODYSYSTEM_F, tmpF);
-	}
-
-	else if (t == 1100) {
-		tmpF = getArray(BODYSYSTEM_F);
-		for(int i=0; i<m_numBodies*4; i++) {
-			tmpF[i] = 0;
-		}
-		setArray(BODYSYSTEM_F, tmpF);
-	}
-
-	else if (t == 1250) {
-		tmpF = getArray(BODYSYSTEM_F);
-		for(int i=0; i<m_numBodies*4; i++) {
-			tmpF[i] = 0;
-		}
-		tmpF[18*4] = 30.0f;
-		tmpF[19*4] = 30.0f;
-		tmpF[20*4] = 30.0f;
-		tmpF[21*4] = 30.0f;
-		tmpF[22*4] = 30.0f;
-		tmpF[23*4] = 30.0f;
-		tmpF[24*4] = 30.0f;
-		tmpF[25*4] = 30.0f;
-		tmpF[26*4] = 30.0f;
-		setArray(BODYSYSTEM_F, tmpF);
-	}
-
-	else if (t == 1500) {
-		tmpF = getArray(BODYSYSTEM_F);
-		for(int i=0; i<m_numBodies*4; i++) {
-			tmpF[i] = 0;
-		}
-		setArray(BODYSYSTEM_F, tmpF);
-	}
-
-	else if (t == 1650) {
-		tmpF = getArray(BODYSYSTEM_F);
-		for(int i=0; i<m_numBodies*4; i++) {
-			tmpF[i] = 0;
-		}
-		tmpF[0*4] = -30.0f;
-		tmpF[1*4] = -30.0f;
-		tmpF[2*4] = -30.0f;
-		tmpF[3*4] = -30.0f;
-		tmpF[4*4] = -30.0f;
-		tmpF[5*4] = -30.0f;
-		tmpF[6*4] = -30.0f;
-		tmpF[7*4] = -30.0f;
-		tmpF[8*4] = -30.0f;
-		setArray(BODYSYSTEM_F, tmpF);
-	}
-
-	else if (t == 1850) {
-		tmpF = getArray(BODYSYSTEM_F);
-		for(int i=0; i<m_numBodies*4; i++) {
-			tmpF[i] = 0;
-		}
-		setArray(BODYSYSTEM_F, tmpF);
-	}
-
-	else if (t == 2000) {
-		tmpF = getArray(BODYSYSTEM_F);
-		for(int i=0; i<m_numBodies*4; i++) {
-			tmpF[i] = 0;
-		}
-		tmpF[24*4] = 30.0f;
-		tmpF[25*4] = 30.0f;
-		tmpF[26*4] = 30.0f;
-		tmpF[24*4+1] = 30.0f;
-		tmpF[25*4+1] = 30.0f;
-		tmpF[26*4+1] = 30.0f;
-		setArray(BODYSYSTEM_F, tmpF);
-	}
-*/
-	fprintf(stdout, "%d\n",t);
-
     oclCheckError(m_bInitialized, shrTRUE);
 
     computeExternalForces(cqCommandQueue,
@@ -305,17 +193,6 @@ void BodySystemOpenCL::update(float deltaTime)
         		m_numBodies, m_p, m_q,
         		1);
 
- /*   tmpF = getArray(BODYSYSTEM_FORCES_WRITE);
-    fprintf(stdout,"\n\n#####################################################\n");
-    fprintf(stdout,"^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n");
-    for(int i = 0; i < m_numBodies; i++) {
-    	fprintf(stdout, "%d--> x: %f, y: %f, z: %f\n", i, tmpF[i*4], tmpF[i*4+1], tmpF[i*4+2]);
-    }
-
-
-    tmpF = getArray(BODYSYSTEM_FORCES);
-    setArray(BODYSYSTEM_FORCES_WRITE, tmpF);
-*/
     computeSpringsForces(cqCommandQueue,
         		sprFor_kernel,
         		m_dForces[m_currentWrite],
@@ -327,17 +204,18 @@ void BodySystemOpenCL::update(float deltaTime)
         		m_numEdges, m_p, m_q,
         		1);
 
-
-  /*  fprintf(stdout,"^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n");
-    tmpF = getArray(BODYSYSTEM_FORCES_WRITE);
-    for(int i = 0; i < m_numBodies; i++) {
-    	fprintf(stdout, "%d--> x: %f, y: %f, z: %f\n", i, tmpF[i*4], tmpF[i*4+1], tmpF[i*4+2]);
-    }
-    fprintf(stdout,"#####################################################\n");
-
-    tmpF = getArray(BODYSYSTEM_FORCES_WRITE);
-    setArray(BODYSYSTEM_FORCES, tmpF);
+/*    integrateSystemVerlet(cqCommandQueue,
+        			intVer_kernel,
+        			m_dPos[m_currentWrite],
+        			m_dPos[m_currentRead],
+        			m_dOldPos[m_currentWrite],
+        			m_dOldPos[m_currentRead],
+        			m_dForces[m_currentRead],
+        			deltaTime,
+        			m_numBodies, m_p, m_q,
+        			1);
 */
+
     	integrateSystem(cqCommandQueue,
     			intBod_kernel,
     			m_dPos[m_currentWrite],
@@ -369,6 +247,11 @@ float* BodySystemOpenCL::getArray(BodyArray array)
     switch (array)
     {
         default:
+        case BODYSYSTEM_OLD_POSITION:
+        	hdata = m_hOldPos;
+        	ddata = m_dOldPos[m_currentRead];
+        	nB = m_numBodies;
+        	break;
         case BODYSYSTEM_POSITION:
             hdata = m_hPos;
             ddata = m_dPos[m_currentRead];
@@ -441,6 +324,10 @@ void BodySystemOpenCL::setArray(BodyArray array, const float* data)
             }
         }
             break;
+        case BODYSYSTEM_OLD_POSITION:
+        	CopyArrayToDevice(0, cqCommandQueue, m_dOldPos[m_currentRead], data, m_numBodies, m_bDouble);
+        	break;
+
         case BODYSYSTEM_VELOCITY:
             CopyArrayToDevice(0, cqCommandQueue, m_dVel[m_currentRead], data, m_numBodies, m_bDouble);
             break;

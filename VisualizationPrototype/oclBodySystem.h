@@ -37,6 +37,7 @@
 
         enum BodyArray 
         {
+        	BODYSYSTEM_OLD_POSITION,
             BODYSYSTEM_POSITION,
             BODYSYSTEM_VELOCITY,
             BODYSYSTEM_F,

@@ -49,6 +49,14 @@ int main(int argc, char *argv[])
   /* show the window */
   qt4_window->show();
 
+  QWidget window;
+
+	window.resize(250, 150);
+	window.setWindowTitle("Controls");
+	  window.show();
+
+	printf("PREFERENCES");
+
   /* run the Win32 message loop */
   int val = app.exec();
 

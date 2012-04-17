@@ -183,7 +183,7 @@ extern "C"
     	oclCheckError(ciErrNum, CL_SUCCESS);
 
     	// set work-item dimensions
-    	local_work_size[0] = numBodies;
+    	local_work_size[0] = 256;
     	local_work_size[1] = q;
     	global_work_size[0]= numBodies;
     	global_work_size[1]= q;
@@ -297,7 +297,7 @@ extern "C"
     	oclCheckError(ciErrNum, CL_SUCCESS);
 
     	// set work-item dimensions
-    	local_work_size[0] = numBodies;
+    	local_work_size[0] = 256;
     	local_work_size[1] = q;
     	global_work_size[0]= numBodies;
     	global_work_size[1]= q;
@@ -307,6 +307,57 @@ extern "C"
 
     	oclCheckError(ciErrNum, CL_SUCCESS);
     }
+
+    void integrateSystemVerlet(cl_command_queue cqCommandQueue,
+        		cl_kernel k,
+        		cl_mem newPositions,
+        		cl_mem oldPositions,
+        		cl_mem newBeforePos,
+        		cl_mem oldBeforePos,
+        		cl_mem oldForces,
+        		float deltaTime,
+        		int numBodies, int p, int q,
+        		bool bDouble)
+        {
+        	int sharedMemSize;
+
+        	//for double precision
+        	if (bDouble)
+        	{
+        		sharedMemSize = p * q * sizeof(cl_double4); // 4 doubles for pos
+        	}
+        	else
+        	{
+        		sharedMemSize = p * q * sizeof(cl_float4); // 4 floats for pos
+        	}
+
+        	size_t global_work_size[2];
+        	size_t local_work_size[2];
+        	cl_int ciErrNum = CL_SUCCESS;
+        	cl_kernel kernel;
+
+        	kernel = k;
+
+        	ciErrNum |= clSetKernelArg(kernel, 0, sizeof(cl_mem), (void *)&newPositions);
+        	ciErrNum |= clSetKernelArg(kernel, 1, sizeof(cl_mem), (void *)&oldPositions);
+        	ciErrNum |= clSetKernelArg(kernel, 2, sizeof(cl_mem), (void *)&newBeforePos);
+        	ciErrNum |= clSetKernelArg(kernel, 3, sizeof(cl_mem), (void *)&oldBeforePos);
+        	ciErrNum |= clSetKernelArg(kernel, 4, sizeof(cl_mem), (void *)&oldForces);
+        	ciErrNum |= clSetKernelArg(kernel, 5, sizeof(cl_float), (void *)&deltaTime);
+
+        	oclCheckError(ciErrNum, CL_SUCCESS);
+
+        	// set work-item dimensions
+        	local_work_size[0] = 256;
+        	local_work_size[1] = q;
+        	global_work_size[0]= numBodies;
+        	global_work_size[1]= q;
+
+        	// execute the kernel:
+        	ciErrNum = clEnqueueNDRangeKernel(cqCommandQueue, kernel, 2, NULL, global_work_size, local_work_size, 0, NULL, NULL);
+
+        	oclCheckError(ciErrNum, CL_SUCCESS);
+        }
 
     /*
      *
