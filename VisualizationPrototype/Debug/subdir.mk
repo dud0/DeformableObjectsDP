@@ -3,23 +3,29 @@
 ################################################################################
 
 # Add inputs and outputs from these tool invocations to the build variables 
+O_SRCS += \
+../ControlsWidget.o 
+
 CPP_SRCS += \
 ../Program.cpp \
 ../oclBodySystemOpencl.cpp \
 ../oclBodySystemOpenclLaunch.cpp \
-../oclScan_launcher.cpp 
+../oclScan_launcher.cpp \
+../qcontrolswidget.cpp 
 
 OBJS += \
 ./Program.o \
 ./oclBodySystemOpencl.o \
 ./oclBodySystemOpenclLaunch.o \
-./oclScan_launcher.o 
+./oclScan_launcher.o \
+./qcontrolswidget.o 
 
 CPP_DEPS += \
 ./Program.d \
 ./oclBodySystemOpencl.d \
 ./oclBodySystemOpenclLaunch.d \
-./oclScan_launcher.d 
+./oclScan_launcher.d \
+./qcontrolswidget.d 
 
 
 # Each subdirectory must supply rules for building sources it contributes

@@ -1,36 +1,7 @@
-/**************************************************************************************/
-/*                                                                                    */
-/*  Visualization Library                                                             */
-/*  http://www.visualizationlibrary.org                                               */
-/*                                                                                    */
-/*  Copyright (c) 2005-2010, Michele Bosi                                             */
-/*  All rights reserved.                                                              */
-/*                                                                                    */
-/*  Redistribution and use in source and binary forms, with or without modification,  */
-/*  are permitted provided that the following conditions are met:                     */
-/*                                                                                    */
-/*  - Redistributions of source code must retain the above copyright notice, this     */
-/*  list of conditions and the following disclaimer.                                  */
-/*                                                                                    */
-/*  - Redistributions in binary form must reproduce the above copyright notice, this  */
-/*  list of conditions and the following disclaimer in the documentation and/or       */
-/*  other materials provided with the distribution.                                   */
-/*                                                                                    */
-/*  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND   */
-/*  ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED     */
-/*  WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE            */
-/*  DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR  */
-/*  ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES    */
-/*  (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;      */
-/*  LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON    */
-/*  ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT           */
-/*  (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS     */
-/*  SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.                      */
-/*                                                                                    */
-/**************************************************************************************/
-
 #ifndef MCApplet_INCLUDE_ONCE
 #define MCApplet_INCLUDE_ONCE
+
+#include "ConfigurationData.hpp"
 
 #include <string>
 #include <iostream>
@@ -251,6 +222,7 @@ public:
 	cl_mem d_pos;
 	cl_mem d_normal;
 
+	cl_mem d_colorIntensities;
 	cl_mem d_volumeData;
 	cl_uint pointCnt;
 	cl_uint offset;
@@ -347,6 +319,7 @@ public:
 		d_voxelOccupiedScan = clCreateBuffer(clManager->cxGPUContext, CL_MEM_READ_WRITE, memSize, 0, &(clManager->ciErrNum));
 		d_compVoxelArray = clCreateBuffer(clManager->cxGPUContext, CL_MEM_READ_WRITE, memSize, 0, &(clManager->ciErrNum));
 		d_volumeData = clCreateBuffer(clManager->cxGPUContext, CL_MEM_READ_WRITE, sizeof(float)*numVoxels*2, 0, &(clManager->ciErrNum));
+		d_colorIntensities = clCreateBuffer(clManager->cxGPUContext, CL_MEM_READ_WRITE, sizeof(float)*numVoxels*2, 0, &(clManager->ciErrNum));
 	}
 
 
@@ -486,6 +459,10 @@ class MCApplet: public vl::Applet
 {
 public:
 
+	MCApplet(ConfigurationData *configData):vl::Applet() {
+		this->configData=configData;
+	}
+
   // called once after the OpenGL window has been opened
 	void initEvent()
 	{
@@ -500,6 +477,10 @@ public:
 
 		simulationInit();
 	}
+
+	/*void setControlsWindow(ControlsWidget *window) {
+		controlsWindow=window;
+	}*/
 
 	void addVisualizationObject(int pointCnt, int offset) {
 		// allocate the Transform
@@ -540,6 +521,8 @@ public:
 
 		VisualizationObject *object = new VisualizationObject(animator, actor);
 		objects->push_back(object);
+
+		//controlsWindow->addObjectToSelect(1 /*objects->size()*/);
 	}
 
 	void addBorders()
@@ -611,6 +594,10 @@ public:
 	// called every frame
 	virtual void updateScene()
 	{
+		for (int i=0; i<objects->size(); i++) {
+			objects->at(i)->setPointRadius(configData->objectData[i].radius);
+			objects->at(i)->setMCIsoValue(configData->objectData[i].isoValue);
+		}
 		//bordersActor->actorEventCallbacks()->push_back( new vl::DepthSortCallback );
 		//run kernels to update particle positions
 		//nbody->update(m_timestep);
@@ -1346,8 +1333,14 @@ public:
 
 		}
 
+	vl::Collection<VisualizationObject>* getObjects() {
+		return objects;
+	}
+
 
 protected:
+	ConfigurationData *configData;
+
 	vl::ref<vl::Transform> transform;
 	CLManager *clManager;
 	vl::ref<vl::SceneManagerActorTree> scene_manager;
@@ -1481,17 +1474,6 @@ protected:
 			objects->at(0)->setPointRadius(objects->at(0)->getPointRadius()+1);
 		}*/
 	}
-
-	/*void showVisualizationPreferences() {
-		QWidget window;
-
-		window.resize(250, 150);
-		window.setWindowTitle("Simple example");
-		window.show();
-		window.activateWindow();
-		printf("PREFERENCES");
-	}*/
-
 };
 
 

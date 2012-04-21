@@ -1,6 +1,8 @@
+#include "qcontrolswidget.h"
 #include <vlCore/VisualizationLibrary.hpp>
 #include <vlQt4/Qt4Widget.hpp>
 #include "MCApplet.hpp"
+#include "ConfigurationData.hpp"
 
 using namespace vl;
 using namespace vlQt4;
@@ -23,7 +25,9 @@ int main(int argc, char *argv[])
   //format.setMultisample(true);
 
   /* create the applet to be run */
-  ref<Applet> applet = new MCApplet;
+  ConfigurationData *configData = new ConfigurationData;
+
+  ref<MCApplet> applet = new MCApplet(configData);
   applet->initialize();
   /* create a native Qt4 window */
   ref<vlQt4::Qt4Widget> qt4_window = new vlQt4::Qt4Widget;
@@ -49,13 +53,12 @@ int main(int argc, char *argv[])
   /* show the window */
   qt4_window->show();
 
-  QWidget window;
+  QControlsWidget *controlsWindow = new QControlsWidget(NULL, configData);
 
-	window.resize(250, 150);
-	window.setWindowTitle("Controls");
-	  window.show();
+  //applet->setControlsWindow(controlsWindow);
 
-	printf("PREFERENCES");
+  controlsWindow->setWindowTitle("Controls");
+  controlsWindow->show();
 
   /* run the Win32 message loop */
   int val = app.exec();
