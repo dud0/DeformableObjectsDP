@@ -49,7 +49,7 @@ using namespace std;
 class ObjectAnimator: public vl::ActorEventCallback
 {
 public:
-	ObjectAnimator(CLManager *clManager, BodySystemOpenCL *nBody, cl_uint pointCnt, cl_uint offset)
+	ObjectAnimator(CLManager *clManager, BodySystemOpenCL *nBody, cl_uint pointCnt, cl_uint offset, float * pointPos)
 	{
 		this->clManager = clManager;
 		this->nBody = nBody;
@@ -71,6 +71,9 @@ public:
 		radius = 1.0f;
 
 		isoValue = 0.5f;
+
+		d_volumeData = 0;
+		d_colorIntensities = 0;
 
 		d_pos = 0;
 		d_normal = 0;
@@ -97,6 +100,18 @@ public:
 		bQATest = false;
 
 		initMC();
+
+		colorIntensities=(float *)malloc(sizeof(float)*pointCnt);
+		generateColorIntensities(pointPos);
+
+		clEnqueueWriteBuffer(clManager->cqCommandQueue, d_colorIntensities, CL_TRUE, 0, sizeof(float)*pointCnt, colorIntensities, 0, NULL, NULL);
+
+	}
+
+	void generateColorIntensities(float * pointPos) {
+		for (int i=0; i<pointCnt;i++) {
+			colorIntensities[i]=(PerlinNoise3D(pointPos[(i+offset)*4],pointPos[(i+offset)*4 + 1],pointPos[(i+offset)*4 + 2],1.01f,2.0f,3)+1.0f)/2.0f;
+		}
 	}
 
 	vl::Geometry * getNewGeometry() {
@@ -169,6 +184,7 @@ public:
 		if( d_voxelOccupiedScan) clReleaseMemObject(d_voxelOccupiedScan);
 		if( d_compVoxelArray) clReleaseMemObject(d_compVoxelArray);
 		if( d_volumeData) clReleaseMemObject(d_volumeData);
+		if( d_colorIntensities) clReleaseMemObject(d_colorIntensities);
 
 		closeScan();
 	}
@@ -221,6 +237,8 @@ public:
 
 	cl_mem d_pos;
 	cl_mem d_normal;
+
+	float *colorIntensities;
 
 	cl_mem d_colorIntensities;
 	cl_mem d_volumeData;
@@ -319,7 +337,7 @@ public:
 		d_voxelOccupiedScan = clCreateBuffer(clManager->cxGPUContext, CL_MEM_READ_WRITE, memSize, 0, &(clManager->ciErrNum));
 		d_compVoxelArray = clCreateBuffer(clManager->cxGPUContext, CL_MEM_READ_WRITE, memSize, 0, &(clManager->ciErrNum));
 		d_volumeData = clCreateBuffer(clManager->cxGPUContext, CL_MEM_READ_WRITE, sizeof(float)*numVoxels*2, 0, &(clManager->ciErrNum));
-		d_colorIntensities = clCreateBuffer(clManager->cxGPUContext, CL_MEM_READ_WRITE, sizeof(float)*numVoxels*2, 0, &(clManager->ciErrNum));
+		d_colorIntensities = clCreateBuffer(clManager->cxGPUContext, CL_MEM_READ_WRITE, sizeof(float)*pointCnt, 0, &(clManager->ciErrNum));
 	}
 
 
@@ -339,7 +357,7 @@ public:
 		}
 
 		clManager->launch_calcFieldValue(grid, threads,
-				d_volumeData, nBody->getPos(), pointCnt, offset, radius, gridSizeShift, gridSizeMask);
+				d_volumeData, nBody->getPos(), d_colorIntensities,pointCnt, offset, radius, gridSizeShift, gridSizeMask);
 
 		// calculate number of vertices need per voxel
 		clManager->launch_classifyVoxel(grid, threads,
@@ -482,7 +500,7 @@ public:
 		controlsWindow=window;
 	}*/
 
-	void addVisualizationObject(int pointCnt, int offset) {
+	void addVisualizationObject(int pointCnt, int offset, float * pos) {
 		// allocate the Transform
 		transform = new vl::Transform;
 		// bind the Transform with the transform tree of the rendring pipeline
@@ -514,15 +532,13 @@ public:
 
 		effect->shader()->setRenderState(glsl.get());
 
-		ObjectAnimator *animator = new ObjectAnimator(clManager, nbody, pointCnt, offset);
+		ObjectAnimator *animator = new ObjectAnimator(clManager, nbody, pointCnt, offset, pos);
 
 		vl::ref<vl::Actor> actor=scene_manager->tree()->addActor( animator->getNewGeometry(), effect.get(), transform.get());
 		actor->actorEventCallbacks()->push_back(animator);
 
 		VisualizationObject *object = new VisualizationObject(animator, actor);
 		objects->push_back(object);
-
-		//controlsWindow->addObjectToSelect(1 /*objects->size()*/);
 	}
 
 	void addBorders()
@@ -1462,7 +1478,7 @@ protected:
 
 		int total = 0;
 		for (int i=0;i<objectCount;i++) {
-			addVisualizationObject(objectsPointCounts[i], total);
+			addVisualizationObject(objectsPointCounts[i], total, hPos);
 			total+=objectsPointCounts[i];
 		}
 	}

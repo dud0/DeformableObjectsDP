@@ -50,7 +50,7 @@ float calcPointContribution(float4 point, int4 gridPos, float radius)
 
 __kernel
 void
-calcFieldValue(__global float2 *volumeData, __global float4 *points, uint count, uint offset, float radius, uint4 gridSizeShift, uint4 gridSizeMask)
+calcFieldValue(__global float2 *volumeData, __global float4 *points, __global float *colorIntensities, uint count, uint offset, float radius, uint4 gridSizeShift, uint4 gridSizeMask)
 {
 	int index = get_global_id(0);
 
@@ -77,7 +77,7 @@ calcFieldValue(__global float2 *volumeData, __global float4 *points, uint count,
 			contribution=calcPointContribution(points[i], gridPos, radius);
 			if (contribution>0.0f) {
 				sum+=contribution;
-				colIntensityContribution+=points[i].w * contribution;
+				colIntensityContribution+=colorIntensities[i-offset] * contribution;
 			}
 		}		
 	}
