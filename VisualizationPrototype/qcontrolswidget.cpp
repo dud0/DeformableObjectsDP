@@ -47,6 +47,7 @@ void QControlsWidget::showObjectData(int index) {
 }
 
 void QControlsWidget::saveObjectData() {
+	configData->objectData[ui.comboBox->currentIndex()].change = true;
 	configData->objectData[ui.comboBox->currentIndex()].radius=ui.radiusLineEdit->text().toFloat();
 	configData->objectData[ui.comboBox->currentIndex()].isoValue=ui.isovalueLineEdit->text().toFloat();
 	configData->objectData[ui.comboBox->currentIndex()].force[0]=ui.xLineEdit->text().toFloat();
