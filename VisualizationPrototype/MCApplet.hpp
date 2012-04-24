@@ -78,6 +78,30 @@ public:
 		d_pos = 0;
 		d_normal = 0;
 
+		global_work_size = 128;
+		if (pointCnt<=128) {
+			;
+		} else {
+			if (pointCnt <= 256)
+				global_work_size = 256;
+			else if (pointCnt <= 512)
+				global_work_size= 512;
+			else if (pointCnt <= 1024)
+				global_work_size = 1024;
+			else if (pointCnt <= 2048)
+				global_work_size = 2048;
+			else if (pointCnt <= 4096)
+				global_work_size = 4096;
+			else if (pointCnt <= 8192)
+				global_work_size = 8192;
+			else if (pointCnt <= 16384)
+				global_work_size = 16384;
+			else if(pointCnt <= 32768)
+				global_work_size = 32768;
+			else if (pointCnt <= 65536)
+				global_work_size = 65536;
+		}
+
 		this->pointCnt = pointCnt;
 		this->offset = offset;
 
@@ -104,13 +128,17 @@ public:
 		colorIntensities=(float *)malloc(sizeof(float)*pointCnt);
 		generateColorIntensities(pointPos);
 
-		clEnqueueWriteBuffer(clManager->cqCommandQueue, d_colorIntensities, CL_TRUE, 0, sizeof(float)*pointCnt, colorIntensities, 0, NULL, NULL);
+		uploadColorIntensities();
+	}
 
+	void uploadColorIntensities() {
+		clEnqueueWriteBuffer(clManager->cqCommandQueue, d_colorIntensities, CL_TRUE, 0, sizeof(float)*pointCnt, colorIntensities, 0, NULL, NULL);
 	}
 
 	void generateColorIntensities(float * pointPos) {
 		for (int i=0; i<pointCnt;i++) {
 			colorIntensities[i]=(PerlinNoise3D(pointPos[(i+offset)*4],pointPos[(i+offset)*4 + 1],pointPos[(i+offset)*4 + 2],1.01f,2.0f,3)+1.0f)/2.0f;
+			//colorIntensities[i]=0.5f;
 		}
 	}
 
@@ -212,9 +240,10 @@ public:
 	}
 
 
-
 	int *pArgc;
 	char **pArgv;
+
+	cl_uint global_work_size;
 
 	cl_uint gridSizeLog2[4];
 	cl_uint gridSizeShift[4];
@@ -238,6 +267,7 @@ public:
 	cl_mem d_pos;
 	cl_mem d_normal;
 
+	displayMode objectDisplayMode;
 	float *colorIntensities;
 
 	cl_mem d_colorIntensities;
@@ -275,6 +305,15 @@ public:
 
 	void setIsoValue(float isoValue) {
 		this->isoValue=isoValue;
+	}
+
+	void setObjectDisplayMode(displayMode objectDisplayMode) {
+		if (this->objectDisplayMode != objectDisplayMode) {
+			this->objectDisplayMode = objectDisplayMode;
+			if (objectDisplayMode == NORMAL) {
+				uploadColorIntensities();
+			}
+		}
 	}
 
 	////////////////////////////////////////////////////////////////////////////////
@@ -354,6 +393,11 @@ public:
 		if (grid.x > 65535) {
 			grid.y = grid.x / 32768;
 			grid.x = 32768;
+		}
+
+		if(objectDisplayMode == TENSION) {
+			printf("\nTENSION\n");
+			clManager->launch_calcColorIntensitiesTension(global_work_size, threads, nBody->getEdges(), nBody->getPos(), d_colorIntensities, nBody->getNumEdges(), pointCnt, offset);
 		}
 
 		clManager->launch_calcFieldValue(grid, threads,
@@ -466,6 +510,10 @@ public:
 
 	void setMCIsoValue(float isoValue) {
 		animator->setIsoValue(isoValue);
+	}
+
+	void setObjectDisplayMode(displayMode objectDisplayMode) {
+		animator->setObjectDisplayMode(objectDisplayMode);
 	}
 
 protected:
@@ -613,6 +661,7 @@ public:
 		for (int i=0; i<objects->size(); i++) {
 			objects->at(i)->setPointRadius(configData->objectData[i].radius);
 			objects->at(i)->setMCIsoValue(configData->objectData[i].isoValue);
+			objects->at(i)->setObjectDisplayMode(configData->objectData[i].mode);
 		}
 		//bordersActor->actorEventCallbacks()->push_back( new vl::DepthSortCallback );
 		//run kernels to update particle positions
@@ -1387,7 +1436,6 @@ protected:
 	//--
 
 	void simulationInit() {
-		//numBodies = 1000;
 		int p = 256;
 		int q = 1;
 
@@ -1426,12 +1474,10 @@ protected:
 		int newBodiesCount;
 		int objectsPointCounts[20];
 		int objectCount = 0;
-		while (infile >> s) {
 
+		while (infile >> s) {
 			newBodiesCount = getNumBodies((char*)s.c_str());
-			//printf("\nNUMBODIES: %d\nNEWBODIES: %d\n",numBodies, newBodiesCount);
 			objectsPointCounts[objectCount++] = newBodiesCount;
-			//addVisualizationObject(newBodiesCount, numBodies);
 			numBodies += newBodiesCount;
 		}
 

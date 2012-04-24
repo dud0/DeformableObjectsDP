@@ -359,4 +359,8 @@ cl_mem BodySystemOpenCL::getPos() {
 	return m_dPos[m_currentRead];
 }
 
+cl_mem BodySystemOpenCL::getEdges() {
+	return m_dEdge[m_currentRead];
+}
+
 

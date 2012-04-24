@@ -44,12 +44,26 @@ void QControlsWidget::showObjectData(int index) {
 	ui.xLineEdit->setText(QString::number(configData->objectData[index].force[0]));
 	ui.yLineEdit->setText(QString::number(configData->objectData[index].force[1]));
 	ui.zLineEdit->setText(QString::number(configData->objectData[index].force[2]));
+	switch (configData->objectData[index].mode) {
+	case NORMAL:
+		ui.normalModeRadioButton->setChecked(true);
+		break;
+	case TENSION:
+		ui.tensionModeRadioButton->setChecked(true);
+		break;
+	}
 }
 
 void QControlsWidget::saveObjectData() {
-	configData->objectData[ui.comboBox->currentIndex()].radius=ui.radiusLineEdit->text().toFloat();
-	configData->objectData[ui.comboBox->currentIndex()].isoValue=ui.isovalueLineEdit->text().toFloat();
-	configData->objectData[ui.comboBox->currentIndex()].force[0]=ui.xLineEdit->text().toFloat();
-	configData->objectData[ui.comboBox->currentIndex()].force[1]=ui.yLineEdit->text().toFloat();
-	configData->objectData[ui.comboBox->currentIndex()].force[2]=ui.zLineEdit->text().toFloat();
+	int index = ui.comboBox->currentIndex();
+	configData->objectData[index].radius=ui.radiusLineEdit->text().toFloat();
+	configData->objectData[index].isoValue=ui.isovalueLineEdit->text().toFloat();
+	configData->objectData[index].force[0]=ui.xLineEdit->text().toFloat();
+	configData->objectData[index].force[1]=ui.yLineEdit->text().toFloat();
+	configData->objectData[index].force[2]=ui.zLineEdit->text().toFloat();
+	if (ui.normalModeRadioButton->isChecked()) {
+		configData->objectData[index].mode=NORMAL;
+	} else if (ui.tensionModeRadioButton->isChecked()) {
+		configData->objectData[index].mode=TENSION;
+	}
 }

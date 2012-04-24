@@ -49,6 +49,7 @@ class BodySystemOpenCL : public BodySystem
         virtual void synchronizeThreads() const;
 
         cl_mem getPos();
+        cl_mem getEdges();
 
     protected: // methods
         BodySystemOpenCL() {}

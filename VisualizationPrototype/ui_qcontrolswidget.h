@@ -1,7 +1,7 @@
 /********************************************************************************
 ** Form generated from reading UI file 'qcontrolswidget.ui'
 **
-** Created: Sat Apr 21 16:24:57 2012
+** Created: Mon Apr 23 18:27:46 2012
 **      by: Qt User Interface Compiler version 4.7.4
 **
 ** WARNING! All changes made in this file will be lost when recompiling UI file!
@@ -15,10 +15,12 @@
 #include <QtGui/QApplication>
 #include <QtGui/QButtonGroup>
 #include <QtGui/QComboBox>
+#include <QtGui/QGroupBox>
 #include <QtGui/QHeaderView>
 #include <QtGui/QLabel>
 #include <QtGui/QLineEdit>
 #include <QtGui/QPushButton>
+#include <QtGui/QRadioButton>
 #include <QtGui/QWidget>
 
 QT_BEGIN_NAMESPACE
@@ -39,12 +41,15 @@ public:
     QLineEdit *zLineEdit;
     QLabel *yLabel;
     QLabel *zLabel;
+    QGroupBox *modeSelectGroup;
+    QRadioButton *normalModeRadioButton;
+    QRadioButton *tensionModeRadioButton;
 
     void setupUi(QWidget *QControlsWidgetClass)
     {
         if (QControlsWidgetClass->objectName().isEmpty())
             QControlsWidgetClass->setObjectName(QString::fromUtf8("QControlsWidgetClass"));
-        QControlsWidgetClass->resize(326, 378);
+        QControlsWidgetClass->resize(500, 378);
         comboBox = new QComboBox(QControlsWidgetClass);
         comboBox->setObjectName(QString::fromUtf8("comboBox"));
         comboBox->setGeometry(QRect(100, 30, 85, 27));
@@ -84,6 +89,15 @@ public:
         zLabel = new QLabel(QControlsWidgetClass);
         zLabel->setObjectName(QString::fromUtf8("zLabel"));
         zLabel->setGeometry(QRect(40, 260, 67, 17));
+        modeSelectGroup = new QGroupBox(QControlsWidgetClass);
+        modeSelectGroup->setObjectName(QString::fromUtf8("modeSelectGroup"));
+        modeSelectGroup->setGeometry(QRect(300, 50, 151, 131));
+        normalModeRadioButton = new QRadioButton(modeSelectGroup);
+        normalModeRadioButton->setObjectName(QString::fromUtf8("normalModeRadioButton"));
+        normalModeRadioButton->setGeometry(QRect(10, 30, 114, 22));
+        tensionModeRadioButton = new QRadioButton(modeSelectGroup);
+        tensionModeRadioButton->setObjectName(QString::fromUtf8("tensionModeRadioButton"));
+        tensionModeRadioButton->setGeometry(QRect(10, 60, 114, 22));
 
         retranslateUi(QControlsWidgetClass);
 
@@ -100,6 +114,9 @@ public:
         applyPushButton->setText(QApplication::translate("QControlsWidgetClass", "Apply", 0, QApplication::UnicodeUTF8));
         yLabel->setText(QApplication::translate("QControlsWidgetClass", "Y", 0, QApplication::UnicodeUTF8));
         zLabel->setText(QApplication::translate("QControlsWidgetClass", "Z", 0, QApplication::UnicodeUTF8));
+        modeSelectGroup->setTitle(QApplication::translate("QControlsWidgetClass", "Display mode", 0, QApplication::UnicodeUTF8));
+        normalModeRadioButton->setText(QApplication::translate("QControlsWidgetClass", "Normal", 0, QApplication::UnicodeUTF8));
+        tensionModeRadioButton->setText(QApplication::translate("QControlsWidgetClass", "Tension", 0, QApplication::UnicodeUTF8));
     } // retranslateUi
 
 };
