@@ -21,8 +21,8 @@ int main(int argc, char *argv[])
   //format.setDepthBufferBits(24);
   //format.setStencilBufferBits(8);
   //format.setFullscreen(false);
-  //format.setMultisampleSamples(16);
-  //format.setMultisample(true);
+  format.setMultisampleSamples(16);
+  format.setMultisample(true);
 
   /* create the applet to be run */
   ConfigurationData *configData = new ConfigurationData;

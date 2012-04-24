@@ -539,7 +539,7 @@ public:
 		scene_manager = new vl::SceneManagerActorTree;
 		rendering()->as<vl::Rendering>()->sceneManagers()->push_back(scene_manager.get());
 
-		//addBorders();
+		addBorders();
 
 		simulationInit();
 	}
@@ -592,26 +592,105 @@ public:
 		transform = new vl::Transform;
 		rendering()->as<vl::Rendering>()->transform()->addChild( transform.get() );
 
-		vl::ref<vl::Geometry> cube = makeBox( vl::vec3(0.0f,0.0f,0.0f), 2.0f, 2.0f, 2.0f );
-		cube->computeNormals();
-		cube->computeBounds();
+		vl::ref<vl::Geometry> floor = vl::makeGrid(vl::vec3(0.0f,-1.0f,0.0f), 4, 4, 20, 20);
+		floor->computeNormals();
 
-		/* define the Effect to be used */
-		    vl::ref<vl::Effect> effect = new vl::Effect;
-		    /* enable depth test and lighting */
-		    effect->shader()->enable(vl::EN_DEPTH_TEST);
-		    /* enable lighting and material properties */
-		    effect->shader()->setRenderState( new vl::Light, 0 );
-		    effect->shader()->enable(vl::EN_LIGHTING);
-		    effect->shader()->gocMaterial()->setDiffuse( vl::fvec4(1.0f,1.0f,1.0f,1.0f) );
-		    effect->shader()->gocMaterial()->setTransparency(0.5);
-		    effect->shader()->gocLightModel()->setTwoSide(true);
-		    /* enable alpha blending */
-		    effect->shader()->enable(vl::EN_BLEND);
+		vl::ref<vl::Effect> effect = new vl::Effect;
+		effect->shader()->enable(vl::EN_DEPTH_TEST);
+		effect->shader()->setRenderState( new vl::Light, 0 );
+		effect->shader()->enable(vl::EN_LIGHTING);
+		effect->shader()->gocMaterial()->setAmbient( vl::skyblue);
+		effect->shader()->gocLightModel()->setTwoSide(true);
+		//effect->shader()->enable(vl::EN_BLEND);
 
-		bordersActor = scene_manager->tree()->addActor( cube.get(), effect.get(), transform.get()  );
-		bordersActor->actorEventCallbacks()->push_back( new vl::DepthSortCallback );
+		bordersActor = scene_manager->tree()->addActor( floor.get(), effect.get(), transform.get()  );
 
+		//walls
+
+		effect = new vl::Effect;
+		effect->shader()->enable(vl::EN_DEPTH_TEST);
+		effect->shader()->setRenderState( new vl::Light, 0 );
+		effect->shader()->enable(vl::EN_LIGHTING);
+		//effect->shader()->gocMaterial()->setDiffuse( vl::fvec4(0.7f,0.7f,0.7f,1.0f) );
+		effect->shader()->gocMaterial()->setTransparency(0.2);
+		effect->shader()->gocLightModel()->setTwoSide(true);
+		effect->shader()->enable(vl::EN_BLEND);
+
+		//-----------wall--------------
+		transform = new vl::Transform;
+		rendering()->as<vl::Rendering>()->transform()->addChild( transform.get() );
+		transform->rotate(90, 1,0,0);
+
+		vl::ref<vl::Geometry> wall = vl::makeGrid(vl::vec3(0.0f,-1.0f,0.0f), 2, 2, 10, 10);
+		floor->computeNormals();
+		scene_manager->tree()->addActor( wall.get(), effect.get(), transform.get()  );
+
+		//-----------wall--------------
+		transform = new vl::Transform;
+		rendering()->as<vl::Rendering>()->transform()->addChild( transform.get() );
+		transform->rotate(-90, 1,0,0);
+
+		wall = vl::makeGrid(vl::vec3(0.0f,-1.0f,0.0f), 2, 2, 10, 10);
+		floor->computeNormals();
+		scene_manager->tree()->addActor( wall.get(), effect.get(), transform.get()  );
+
+		//-----------wall--------------
+		transform = new vl::Transform;
+		rendering()->as<vl::Rendering>()->transform()->addChild( transform.get() );
+		transform->rotate(90, 1,0,0);
+		transform->rotate(90, 0,1,0);
+
+		wall = vl::makeGrid(vl::vec3(0.0f,-1.0f,0.0f), 2, 2, 10, 10);
+		floor->computeNormals();
+		scene_manager->tree()->addActor( wall.get(), effect.get(), transform.get()  );
+
+		//-----------wall--------------
+		transform = new vl::Transform;
+		rendering()->as<vl::Rendering>()->transform()->addChild( transform.get() );
+		transform->rotate(-90, 1,0,0);
+		transform->rotate(90, 0,1,0);
+
+		wall = vl::makeGrid(vl::vec3(0.0f,-1.0f,0.0f), 2, 2, 10, 10);
+		floor->computeNormals();
+		scene_manager->tree()->addActor( wall.get(), effect.get(), transform.get()  );
+
+		//-----------wall--------------
+		transform = new vl::Transform;
+		rendering()->as<vl::Rendering>()->transform()->addChild( transform.get() );
+		transform->rotate(180, 1,0,0);
+
+		wall = vl::makeGrid(vl::vec3(0.0f,-1.0f,0.0f), 2, 2, 10, 10);
+		floor->computeNormals();
+		scene_manager->tree()->addActor( wall.get(), effect.get(), transform.get()  );
+
+		//bordersActor->actorEventCallbacks()->push_back( new vl::DepthSortCallback );
+
+	}
+
+	vl::ref<vl::Geometry> makeFloor(const vl::vec3& origin, vl::real xside, vl::real yside) {
+		vl::ref<vl::Geometry> geom = new vl::Geometry;
+		geom->setObjectName("Floor");
+
+		vl::ref<vl::ArrayFloat3> vert3 = new vl::ArrayFloat3;
+		geom->setVertexArray(vert3.get());
+
+		vl::fvec3 a0( (vl::fvec3)(origin) );
+		vl::fvec3 a1( (vl::fvec3)(vl::vec3(0,0,xside) + origin) );
+		vl::fvec3 a2( (vl::fvec3)(vl::vec3(yside,0,0) + origin) );
+		vl::fvec3 a3( (vl::fvec3)(vl::vec3(yside,0,xside) + origin) );
+
+
+
+	   vl::fvec3 verts[] = {
+		 a0, a1, a2,
+		 a1, a3, a2
+	   };
+
+	   vl::ref<vl::DrawArrays> polys = new vl::DrawArrays(vl::PT_TRIANGLES, 0, 6);
+	   geom->drawCalls()->push_back( polys.get() );
+	   vert3->resize( 6 );
+	  memcpy(vert3->ptr(), verts, sizeof(verts));
+	   return geom;
 	}
 
 	vl::ref<vl::Geometry> makeBox( const vl::vec3& origin, vl::real xside, vl::real yside, vl::real zside)
