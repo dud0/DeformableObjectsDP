@@ -565,18 +565,16 @@ public:
 		// enable the standard OpenGL lighting
 		effect->shader()->enable(vl::EN_LIGHTING);
 
-		//vl::ref<vl::GLSLVertexShader> perpixellight_vs = new vl::GLSLVertexShader("./glsl/perpixellight.vs");
-
 		vl::ref<vl::GLSLProgram> glsl = new vl::GLSLProgram;
-		/*glsl->attachShader( perpixellight_vs.get() );
-		glsl->attachShader( new vl::GLSLFragmentShader("./glsl/perpixellight_interlaced.fs") );*/
+		glsl->attachShader( new vl::GLSLVertexShader("./glsl/perpixellight.vs") );
+		glsl->attachShader( new vl::GLSLFragmentShader("./glsl/perpixellight_interlaced.fs") );
 
 		vl::ref<vl::GLSLVertexShader>   noise_vs   = new vl::GLSLVertexShader("./glsl/noise.vs");
 		vl::ref<vl::GLSLFragmentShader> noise3D_fs = new vl::GLSLFragmentShader("./glsl/noise3D.glsl");
 
-		glsl->attachShader( noise_vs.get() );
+		/*glsl->attachShader( noise_vs.get() );
 		glsl->attachShader( new vl::GLSLFragmentShader("./glsl/marble.fs") );
-		glsl->attachShader( noise3D_fs.get() );
+		glsl->attachShader( noise3D_fs.get() );*/
 
 		effect->shader()->setRenderState(glsl.get());
 
