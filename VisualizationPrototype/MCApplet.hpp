@@ -78,6 +78,30 @@ public:
 		d_pos = 0;
 		d_normal = 0;
 
+		global_work_size = 128;
+		if (pointCnt<=128) {
+			;
+		} else {
+			if (pointCnt <= 256)
+				global_work_size = 256;
+			else if (pointCnt <= 512)
+				global_work_size= 512;
+			else if (pointCnt <= 1024)
+				global_work_size = 1024;
+			else if (pointCnt <= 2048)
+				global_work_size = 2048;
+			else if (pointCnt <= 4096)
+				global_work_size = 4096;
+			else if (pointCnt <= 8192)
+				global_work_size = 8192;
+			else if (pointCnt <= 16384)
+				global_work_size = 16384;
+			else if(pointCnt <= 32768)
+				global_work_size = 32768;
+			else if (pointCnt <= 65536)
+				global_work_size = 65536;
+		}
+
 		this->pointCnt = pointCnt;
 		this->offset = offset;
 
@@ -104,13 +128,17 @@ public:
 		colorIntensities=(float *)malloc(sizeof(float)*pointCnt);
 		generateColorIntensities(pointPos);
 
-		clEnqueueWriteBuffer(clManager->cqCommandQueue, d_colorIntensities, CL_TRUE, 0, sizeof(float)*pointCnt, colorIntensities, 0, NULL, NULL);
+		uploadColorIntensities();
+	}
 
+	void uploadColorIntensities() {
+		clEnqueueWriteBuffer(clManager->cqCommandQueue, d_colorIntensities, CL_TRUE, 0, sizeof(float)*pointCnt, colorIntensities, 0, NULL, NULL);
 	}
 
 	void generateColorIntensities(float * pointPos) {
 		for (int i=0; i<pointCnt;i++) {
 			colorIntensities[i]=(PerlinNoise3D(pointPos[(i+offset)*4],pointPos[(i+offset)*4 + 1],pointPos[(i+offset)*4 + 2],1.01f,2.0f,3)+1.0f)/2.0f;
+			//colorIntensities[i]=0.5f;
 		}
 	}
 
@@ -212,9 +240,10 @@ public:
 	}
 
 
-
 	int *pArgc;
 	char **pArgv;
+
+	cl_uint global_work_size;
 
 	cl_uint gridSizeLog2[4];
 	cl_uint gridSizeShift[4];
@@ -238,6 +267,7 @@ public:
 	cl_mem d_pos;
 	cl_mem d_normal;
 
+	displayMode objectDisplayMode;
 	float *colorIntensities;
 
 	cl_mem d_colorIntensities;
@@ -275,6 +305,15 @@ public:
 
 	void setIsoValue(float isoValue) {
 		this->isoValue=isoValue;
+	}
+
+	void setObjectDisplayMode(displayMode objectDisplayMode) {
+		if (this->objectDisplayMode != objectDisplayMode) {
+			this->objectDisplayMode = objectDisplayMode;
+			if (objectDisplayMode == NORMAL) {
+				uploadColorIntensities();
+			}
+		}
 	}
 
 	////////////////////////////////////////////////////////////////////////////////
@@ -354,6 +393,11 @@ public:
 		if (grid.x > 65535) {
 			grid.y = grid.x / 32768;
 			grid.x = 32768;
+		}
+
+		if(objectDisplayMode == TENSION) {
+			printf("\nTENSION\n");
+			clManager->launch_calcColorIntensitiesTension(global_work_size, threads, nBody->getEdges(), nBody->getPos(), d_colorIntensities, nBody->getNumEdges(), pointCnt, offset);
 		}
 
 		clManager->launch_calcFieldValue(grid, threads,
@@ -468,6 +512,10 @@ public:
 		animator->setIsoValue(isoValue);
 	}
 
+	void setObjectDisplayMode(displayMode objectDisplayMode) {
+		animator->setObjectDisplayMode(objectDisplayMode);
+	}
+
 protected:
 	ObjectAnimator *animator;
 	vl::ref<vl::Actor> actor;
@@ -491,7 +539,7 @@ public:
 		scene_manager = new vl::SceneManagerActorTree;
 		rendering()->as<vl::Rendering>()->sceneManagers()->push_back(scene_manager.get());
 
-		//addBorders();
+		addBorders();
 
 		simulationInit();
 	}
@@ -517,18 +565,16 @@ public:
 		// enable the standard OpenGL lighting
 		effect->shader()->enable(vl::EN_LIGHTING);
 
-		//vl::ref<vl::GLSLVertexShader> perpixellight_vs = new vl::GLSLVertexShader("./glsl/perpixellight.vs");
-
 		vl::ref<vl::GLSLProgram> glsl = new vl::GLSLProgram;
-		/*glsl->attachShader( perpixellight_vs.get() );
-		glsl->attachShader( new vl::GLSLFragmentShader("./glsl/perpixellight_interlaced.fs") );*/
+		glsl->attachShader( new vl::GLSLVertexShader("./glsl/perpixellight.vs") );
+		glsl->attachShader( new vl::GLSLFragmentShader("./glsl/perpixellight_interlaced.fs") );
 
 		vl::ref<vl::GLSLVertexShader>   noise_vs   = new vl::GLSLVertexShader("./glsl/noise.vs");
 		vl::ref<vl::GLSLFragmentShader> noise3D_fs = new vl::GLSLFragmentShader("./glsl/noise3D.glsl");
 
-		glsl->attachShader( noise_vs.get() );
+		/*glsl->attachShader( noise_vs.get() );
 		glsl->attachShader( new vl::GLSLFragmentShader("./glsl/marble.fs") );
-		glsl->attachShader( noise3D_fs.get() );
+		glsl->attachShader( noise3D_fs.get() );*/
 
 		effect->shader()->setRenderState(glsl.get());
 
@@ -546,26 +592,105 @@ public:
 		transform = new vl::Transform;
 		rendering()->as<vl::Rendering>()->transform()->addChild( transform.get() );
 
-		vl::ref<vl::Geometry> cube = makeBox( vl::vec3(0.0f,0.0f,0.0f), 2.0f, 2.0f, 2.0f );
-		cube->computeNormals();
-		cube->computeBounds();
+		vl::ref<vl::Geometry> floor = vl::makeGrid(vl::vec3(0.0f,-1.0f,0.0f), 4, 4, 20, 20);
+		floor->computeNormals();
 
-		/* define the Effect to be used */
-		    vl::ref<vl::Effect> effect = new vl::Effect;
-		    /* enable depth test and lighting */
-		    effect->shader()->enable(vl::EN_DEPTH_TEST);
-		    /* enable lighting and material properties */
-		    effect->shader()->setRenderState( new vl::Light, 0 );
-		    effect->shader()->enable(vl::EN_LIGHTING);
-		    effect->shader()->gocMaterial()->setDiffuse( vl::fvec4(1.0f,1.0f,1.0f,1.0f) );
-		    effect->shader()->gocMaterial()->setTransparency(0.5);
-		    effect->shader()->gocLightModel()->setTwoSide(true);
-		    /* enable alpha blending */
-		    effect->shader()->enable(vl::EN_BLEND);
+		vl::ref<vl::Effect> effect = new vl::Effect;
+		effect->shader()->enable(vl::EN_DEPTH_TEST);
+		effect->shader()->setRenderState( new vl::Light, 0 );
+		effect->shader()->enable(vl::EN_LIGHTING);
+		effect->shader()->gocMaterial()->setAmbient( vl::skyblue);
+		effect->shader()->gocLightModel()->setTwoSide(true);
+		//effect->shader()->enable(vl::EN_BLEND);
 
-		bordersActor = scene_manager->tree()->addActor( cube.get(), effect.get(), transform.get()  );
-		bordersActor->actorEventCallbacks()->push_back( new vl::DepthSortCallback );
+		bordersActor = scene_manager->tree()->addActor( floor.get(), effect.get(), transform.get()  );
 
+		//walls
+
+		effect = new vl::Effect;
+		effect->shader()->enable(vl::EN_DEPTH_TEST);
+		effect->shader()->setRenderState( new vl::Light, 0 );
+		effect->shader()->enable(vl::EN_LIGHTING);
+		//effect->shader()->gocMaterial()->setDiffuse( vl::fvec4(0.7f,0.7f,0.7f,1.0f) );
+		effect->shader()->gocMaterial()->setTransparency(0.2);
+		effect->shader()->gocLightModel()->setTwoSide(true);
+		effect->shader()->enable(vl::EN_BLEND);
+
+		//-----------wall--------------
+		transform = new vl::Transform;
+		rendering()->as<vl::Rendering>()->transform()->addChild( transform.get() );
+		transform->rotate(90, 1,0,0);
+
+		vl::ref<vl::Geometry> wall = vl::makeGrid(vl::vec3(0.0f,-1.0f,0.0f), 2, 2, 10, 10);
+		floor->computeNormals();
+		scene_manager->tree()->addActor( wall.get(), effect.get(), transform.get()  );
+
+		//-----------wall--------------
+		transform = new vl::Transform;
+		rendering()->as<vl::Rendering>()->transform()->addChild( transform.get() );
+		transform->rotate(-90, 1,0,0);
+
+		wall = vl::makeGrid(vl::vec3(0.0f,-1.0f,0.0f), 2, 2, 10, 10);
+		floor->computeNormals();
+		scene_manager->tree()->addActor( wall.get(), effect.get(), transform.get()  );
+
+		//-----------wall--------------
+		transform = new vl::Transform;
+		rendering()->as<vl::Rendering>()->transform()->addChild( transform.get() );
+		transform->rotate(90, 1,0,0);
+		transform->rotate(90, 0,1,0);
+
+		wall = vl::makeGrid(vl::vec3(0.0f,-1.0f,0.0f), 2, 2, 10, 10);
+		floor->computeNormals();
+		scene_manager->tree()->addActor( wall.get(), effect.get(), transform.get()  );
+
+		//-----------wall--------------
+		transform = new vl::Transform;
+		rendering()->as<vl::Rendering>()->transform()->addChild( transform.get() );
+		transform->rotate(-90, 1,0,0);
+		transform->rotate(90, 0,1,0);
+
+		wall = vl::makeGrid(vl::vec3(0.0f,-1.0f,0.0f), 2, 2, 10, 10);
+		floor->computeNormals();
+		scene_manager->tree()->addActor( wall.get(), effect.get(), transform.get()  );
+
+		//-----------wall--------------
+		transform = new vl::Transform;
+		rendering()->as<vl::Rendering>()->transform()->addChild( transform.get() );
+		transform->rotate(180, 1,0,0);
+
+		wall = vl::makeGrid(vl::vec3(0.0f,-1.0f,0.0f), 2, 2, 10, 10);
+		floor->computeNormals();
+		scene_manager->tree()->addActor( wall.get(), effect.get(), transform.get()  );
+
+		//bordersActor->actorEventCallbacks()->push_back( new vl::DepthSortCallback );
+
+	}
+
+	vl::ref<vl::Geometry> makeFloor(const vl::vec3& origin, vl::real xside, vl::real yside) {
+		vl::ref<vl::Geometry> geom = new vl::Geometry;
+		geom->setObjectName("Floor");
+
+		vl::ref<vl::ArrayFloat3> vert3 = new vl::ArrayFloat3;
+		geom->setVertexArray(vert3.get());
+
+		vl::fvec3 a0( (vl::fvec3)(origin) );
+		vl::fvec3 a1( (vl::fvec3)(vl::vec3(0,0,xside) + origin) );
+		vl::fvec3 a2( (vl::fvec3)(vl::vec3(yside,0,0) + origin) );
+		vl::fvec3 a3( (vl::fvec3)(vl::vec3(yside,0,xside) + origin) );
+
+
+
+	   vl::fvec3 verts[] = {
+		 a0, a1, a2,
+		 a1, a3, a2
+	   };
+
+	   vl::ref<vl::DrawArrays> polys = new vl::DrawArrays(vl::PT_TRIANGLES, 0, 6);
+	   geom->drawCalls()->push_back( polys.get() );
+	   vert3->resize( 6 );
+	  memcpy(vert3->ptr(), verts, sizeof(verts));
+	   return geom;
 	}
 
 	vl::ref<vl::Geometry> makeBox( const vl::vec3& origin, vl::real xside, vl::real yside, vl::real zside)
@@ -619,6 +744,7 @@ public:
 				uiSetForces(3, configData->objectData[i].force[2], i+1);
 				configData->objectData[i].change = false;
 			}
+			objects->at(i)->setObjectDisplayMode(configData->objectData[i].mode);
 		}
 		//bordersActor->actorEventCallbacks()->push_back( new vl::DepthSortCallback );
 		//run kernels to update particle positions
@@ -1393,7 +1519,6 @@ protected:
 	//--
 
 	void simulationInit() {
-		//numBodies = 1000;
 		int p = 256;
 		int q = 1;
 
@@ -1432,12 +1557,10 @@ protected:
 		int newBodiesCount;
 		int objectsPointCounts[20];
 		int objectCount = 0;
-		while (infile >> s) {
 
+		while (infile >> s) {
 			newBodiesCount = getNumBodies((char*)s.c_str());
-			//printf("\nNUMBODIES: %d\nNEWBODIES: %d\n",numBodies, newBodiesCount);
 			objectsPointCounts[objectCount++] = newBodiesCount;
-			//addVisualizationObject(newBodiesCount, numBodies);
 			numBodies += newBodiesCount;
 		}
 

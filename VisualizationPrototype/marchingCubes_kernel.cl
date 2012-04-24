@@ -20,6 +20,39 @@
 sampler_t volumeSampler = CLK_NORMALIZED_COORDS_FALSE | CLK_ADDRESS_CLAMP_TO_EDGE | CLK_FILTER_NEAREST;
 sampler_t tableSampler = CLK_NORMALIZED_COORDS_FALSE | CLK_ADDRESS_CLAMP_TO_EDGE | CLK_FILTER_NEAREST;
 
+__kernel
+void calcColorIntensitiesTension(__global float4 *edges, __global float4 *points, __global float *colorIntensities, uint edgeCount, uint pointCount, uint offset) {
+	int index = get_global_id(0);
+	int i;
+	uint pointId = index + offset;
+	float maxTension = 0.0f;
+	float tension;
+	float3 tmpVec;
+	float edgeLength;
+	int point1, point2;
+
+	if (index < pointCount) {
+		for (i=0; i<edgeCount; i++) {
+			if ((edges[i].x == pointId || edges[i].y==pointId) && edges[i].w==1) {
+				point1 = edges[i].x;
+				point2 = edges[i].y;
+				tmpVec.x = points[point1].x - points[point2].x;
+				tmpVec.y = points[point1].y - points[point2].y;
+				tmpVec.z = points[point1].z - points[point2].z;
+
+				edgeLength = sqrt(tmpVec.x*tmpVec.x + tmpVec.y*tmpVec.y + tmpVec.z*tmpVec.z);
+
+				tension = edgeLength/(edges[i].z*3);
+
+				if (tension>maxTension) {
+					maxTension=tension;
+				}
+			}
+		}
+		colorIntensities[index]=min(1.0f, maxTension);
+	}
+}
+
 
 // compute position in 3d grid from 1d index
 // only works for power of 2 sizes

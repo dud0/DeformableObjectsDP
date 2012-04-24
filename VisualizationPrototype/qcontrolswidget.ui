@@ -6,7 +6,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>326</width>
+    <width>500</width>
     <height>378</height>
    </rect>
   </property>
@@ -163,6 +163,45 @@
    <property name="text">
     <string>Z</string>
    </property>
+  </widget>
+  <widget class="QGroupBox" name="modeSelectGroup">
+   <property name="geometry">
+    <rect>
+     <x>300</x>
+     <y>50</y>
+     <width>151</width>
+     <height>131</height>
+    </rect>
+   </property>
+   <property name="title">
+    <string>Display mode</string>
+   </property>
+   <widget class="QRadioButton" name="normalModeRadioButton">
+    <property name="geometry">
+     <rect>
+      <x>10</x>
+      <y>30</y>
+      <width>114</width>
+      <height>22</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>Normal</string>
+    </property>
+   </widget>
+   <widget class="QRadioButton" name="tensionModeRadioButton">
+    <property name="geometry">
+     <rect>
+      <x>10</x>
+      <y>60</y>
+      <width>114</width>
+      <height>22</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>Tension</string>
+    </property>
+   </widget>
   </widget>
  </widget>
  <layoutdefault spacing="6" margin="11"/>

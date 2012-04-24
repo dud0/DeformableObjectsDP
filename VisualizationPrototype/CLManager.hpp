@@ -29,6 +29,7 @@ public:
 	cl_kernel classifyVoxelKernel;
 	cl_kernel compactVoxelsKernel;
 	cl_kernel generateTriangles2Kernel;
+	cl_kernel calcColorIntensitiesTensionKernel;
 	cl_int ciErrNum;
 
 	cl_bool g_glInterop;
@@ -157,6 +158,8 @@ public:
 
 		generateTriangles2Kernel = clCreateKernel(cpProgram, "generateTriangles2", &ciErrNum);
 
+		calcColorIntensitiesTensionKernel = clCreateKernel(cpProgram, "calcColorIntensitiesTension", &ciErrNum);
+
 		// Setup Scan
 		initScan(cxGPUContext, cqCommandQueue);
 	}
@@ -181,6 +184,7 @@ public:
 	}
 
 	void Cleanup(int iExitCode) {
+		if(calcColorIntensitiesTensionKernel)clReleaseKernel(calcColorIntensitiesTensionKernel);
 		if(calcFieldValueKernel)clReleaseKernel(calcFieldValueKernel);
 		if(compactVoxelsKernel)clReleaseKernel(compactVoxelsKernel);
 		if(compactVoxelsKernel)clReleaseKernel(generateTriangles2Kernel);
@@ -215,6 +219,18 @@ public:
 						   d_voxelOccupied,
 						   1,
 						   numVoxels);
+	}
+
+	void launch_calcColorIntensitiesTension(size_t global_work_size, size_t local_work_size, cl_mem edges, cl_mem points, cl_mem colorIntensities, cl_uint edgeCnt, cl_uint pointCnt, cl_uint offset) {
+		clSetKernelArg(calcColorIntensitiesTensionKernel, 0, sizeof(cl_mem), &edges);
+		clSetKernelArg(calcColorIntensitiesTensionKernel, 1, sizeof(cl_mem), &points);
+		clSetKernelArg(calcColorIntensitiesTensionKernel, 2, sizeof(cl_mem), &colorIntensities);
+		clSetKernelArg(calcColorIntensitiesTensionKernel, 3, sizeof(cl_uint), &edgeCnt);
+		clSetKernelArg(calcColorIntensitiesTensionKernel, 4, sizeof(cl_uint), &pointCnt);
+		clSetKernelArg(calcColorIntensitiesTensionKernel, 5, sizeof(cl_uint), &offset);
+		ciErrNum = clEnqueueNDRangeKernel(cqCommandQueue, calcColorIntensitiesTensionKernel, 1, NULL, &global_work_size, &local_work_size, 0, 0, 0);
+
+		//printf("\nERROR: %s\n", oclErrorString(ciErrNum));
 	}
 
 	void launch_calcFieldValue(dim3 grid, dim3 threads, cl_mem volumeData, cl_mem points, cl_mem colorIntensities, cl_uint pointCnt, cl_uint offset, cl_float radius, cl_uint gridSizeShift[4], cl_uint gridSizeMask[4]) {

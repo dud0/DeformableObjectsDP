@@ -56,6 +56,8 @@
 
         virtual int    getNumBodies() const { return m_numBodies; }
 
+        virtual int    getNumEdges() const {return m_numEdges; }
+
         virtual void   synchronizeThreads() const {};
 
     protected: // methods
