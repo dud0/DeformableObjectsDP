@@ -221,6 +221,7 @@ REAL3 getFc(int numBodies, REAL4 Fc) {
     
     unsigned int index = get_global_id(0);   
     
+    REAL4 force = oldForces[index];
     REAL4 pos = oldPos[index];
     REAL4 vel = oldVel[index];  
     REAL3 accel = ZERO3;
@@ -251,10 +252,44 @@ REAL3 getFc(int numBodies, REAL4 Fc) {
     	pos.y += vel.y * deltaTime;
     	pos.z += vel.z * deltaTime;
 
+		//Collide with cube
+    	if(pos.x < 1.0f + 0.5){
+        	//pos.x = 0.0f + 0.5;
+        	force.x += 100;
+        	newForces[index] = force;
+    	}
+    	if(pos.x > 31.0f - 0.5){
+        	//pos.x = 32.0f - 0.5;
+        	force.x -= 100.0f;
+        	newForces[index] = force;
+    	}
+
+    	if(pos.y < 1.0f + 0.5){
+        	//pos.y = 0.0f + 0.5;
+        	force.y += 100;
+        	newForces[index] = force;
+   	 	}
+    	if(pos.y > 31.0f - 0.5){
+        	//pos.y = 32.0f - 0.5;
+        	force.y -= 100;
+        	newForces[index] = force;
+    	}
+
+    	if(pos.z < 1.0f + 0.5){
+        	//pos.z = 0.0f + 0.5;
+        	force.z += 100;
+        	newForces[index] = force;
+    	}
+    	if(pos.z > 31.0f - 0.5){
+        	//pos.z = 32.0f - 0.5;
+        	force.z -= 100;
+        	newForces[index] = force;
+    	}
+
     	// store new position and velocity
     	newPos[index] = pos;
     	newVel[index] = vel;
-    	//newForces[index] = oldForces[index];
+    	//newForces[index] = force;
     }
  }
  

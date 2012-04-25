@@ -213,9 +213,8 @@ void BodySystemOpenCL::update(float deltaTime)
         			m_dForces[m_currentRead],
         			deltaTime,
         			m_numBodies, m_p, m_q,
-        			1);
+       			1);
 */
-
     	integrateSystem(cqCommandQueue,
     			intBod_kernel,
     			m_dPos[m_currentWrite],

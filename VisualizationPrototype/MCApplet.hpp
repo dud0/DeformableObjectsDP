@@ -749,7 +749,7 @@ public:
 		//bordersActor->actorEventCallbacks()->push_back( new vl::DepthSortCallback );
 		//run kernels to update particle positions
 		nbody->update(m_timestep);
-		printf("%f\n",fps());
+		//printf("%f\n",fps());
 	}
 
 	void TranslatePositions(int count, float* pos, int pAct, int numObjects) {
@@ -1536,7 +1536,7 @@ protected:
 		m_clusterScale=1.54f;
 		m_velocityScale=1.0f;
 		m_softening=0.1f;
-		m_damping=0.8f;
+		m_damping=0.95f;
 		m_pointSize=5.0f;
 		m_x=0;
 		m_y=-2;
