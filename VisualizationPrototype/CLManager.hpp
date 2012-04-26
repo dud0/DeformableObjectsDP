@@ -232,7 +232,9 @@ public:
 		clSetKernelArg(generateLinesKernel, 2, sizeof(cl_mem), &points);
 		clSetKernelArg(generateLinesKernel, 3, sizeof(cl_uint), &edgeCnt);
 		clSetKernelArg(generateLinesKernel, 4, sizeof(cl_uint), &edgeOffset);
+
 		ciErrNum = clEnqueueNDRangeKernel(cqCommandQueue, generateLinesKernel, 1, NULL, &global_work_size, &local_work_size, 0, 0, 0);
+		//printf("\nERROR: %s\n", oclErrorString(ciErrNum));
 	}
 
 	void launch_calcColorIntensitiesTension(size_t global_work_size, size_t local_work_size, cl_mem edges, cl_mem points, cl_mem colorIntensities, cl_uint edgeCnt, cl_uint pointCnt, cl_uint offset) {

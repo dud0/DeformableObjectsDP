@@ -46,6 +46,153 @@
 
 using namespace std;
 
+class EdgesAnimator: public vl::ActorEventCallback
+{
+public:
+	EdgesAnimator(CLManager *clManager, BodySystemOpenCL *nBody, cl_uint edgeCnt, cl_uint edgeOffset)
+	{
+		this->clManager = clManager;
+		this->nBody = nBody;
+
+		objectDisplayMode = EDGE;
+		d_edgePos = 0;
+
+		this->edgeCnt = edgeCnt;
+		this->edgeOffset = edgeOffset;
+
+		frameCheckNumber=4;
+
+		// Auto-Verification Code
+
+		fpsLimit = 100;        // FPS limit for sampling
+		g_Index = 0;
+		frameCount = 0;
+		g_TotalErrors = 0;
+		g_bNoprompt = false;
+		bQATest = false;
+
+		createVBO(&edgePosVbo, edgeCnt*2*sizeof(float)*4, d_edgePos);
+	}
+
+	vl::Geometry * getNewEdgesGeometry() {
+		vl::Geometry *geom = new vl::Geometry;
+
+		vl::ref<vl::ArrayFloat4> vert4 = new vl::ArrayFloat4;
+
+		vert4->setBufferObjectDirty(false);
+		vert4->bufferObject()->setHandle(edgePosVbo);
+
+		geom->setVertexArray(vert4.get());
+
+		drawMode = new vl::DrawArrays(vl::PT_LINES, 0, edgeCnt*2);
+
+		printf("\nEDGECOUNT: %d\n", edgeCnt);
+
+		geom->drawCalls()->push_back(drawMode.get());
+
+		return geom;
+	}
+
+	virtual void onActorRenderStarted(vl::Actor*, vl::real frame_clock, const vl::Camera*, vl::Renderable* renderable, const vl::Shader*, int pass)
+	{
+
+		if (pass>0)
+			return;
+
+		cl_mem interopBuffers[] = {d_edgePos};
+
+		if( clManager->g_glInterop ) {
+			glFlush();
+			clEnqueueAcquireGLObjects(clManager->cqCommandQueue, 1, interopBuffers, 0, 0, 0);
+		}
+
+		//if (objectDisplayMode==EDGE) {
+		clManager->launch_generateLines(16384, 128, d_edgePos, nBody->getEdges(), nBody->getPos(), edgeCnt, edgeOffset);
+		//}
+		printf("\nEDGEOFFSET: %d\n", edgeOffset);
+		printf("\nEDGECOUNT: %d\n", edgeCnt);
+
+		if( clManager->g_glInterop ) {
+			clEnqueueReleaseGLObjects(clManager->cqCommandQueue, 1, interopBuffers, 0, 0, 0);
+			clFinish( clManager->cqCommandQueue );
+		}
+
+		vl::ref<vl::Geometry> geom = vl::cast<vl::Geometry>( renderable );
+
+		geom->setBoundsDirty(true);
+	}
+
+	void Cleanup(int iExitCode)
+	{
+		deleteVBO(&edgePosVbo, d_edgePos);
+	}
+
+	virtual void onActorDelete(vl::Actor*) {
+		Cleanup(0);
+	}
+
+	////////////////////////////////////////////////////////////////////////////////
+	//! Create VBO
+	////////////////////////////////////////////////////////////////////////////////
+	void
+	createVBO(GLuint* vbo, unsigned int size, cl_mem &vbo_cl)
+	{
+		// create buffer object
+		vl::glGenBuffers(1, vbo);
+		vl::glBindBuffer(GL_ARRAY_BUFFER, *vbo);
+
+		// initialize buffer object
+		vl::glBufferData(GL_ARRAY_BUFFER, size, 0, GL_DYNAMIC_DRAW);
+		vl::glBindBuffer(GL_ARRAY_BUFFER, 0);
+
+		vbo_cl = clCreateFromGLBuffer(clManager->cxGPUContext,CL_MEM_WRITE_ONLY, *vbo, &(clManager->ciErrNum));
+	}
+
+	////////////////////////////////////////////////////////////////////////////////
+	//! Delete VBO
+	////////////////////////////////////////////////////////////////////////////////
+	void
+	deleteVBO(GLuint* vbo, cl_mem vbo_cl)
+	{
+		if( vbo_cl) clReleaseMemObject(vbo_cl);
+
+		if( *vbo ) {
+			vl::glBindBuffer(1, *vbo);
+			vl::glDeleteBuffers(1, vbo);
+
+			*vbo = 0;
+		}
+	}
+
+	cl_uint global_work_size;
+
+	// device data
+	GLuint edgePosVbo;
+
+	cl_mem d_edgePos;
+
+	displayMode objectDisplayMode;
+
+	cl_uint edgeCnt;
+	cl_uint edgeOffset;
+
+	// Auto-Verification Code
+	int frameCheckNumber;
+	unsigned int fpsLimit;        // FPS limit for sampling
+	int g_Index;
+	unsigned int frameCount;
+	unsigned int g_TotalErrors;
+	bool g_bNoprompt;
+	bool bQATest;
+	const char* cpExecutableName;
+
+	vl::ref<vl::DrawArrays> drawMode;
+
+
+	BodySystemOpenCL *nBody;
+	CLManager *clManager;
+};
+
 class ObjectAnimator: public vl::ActorEventCallback
 {
 public:
@@ -244,10 +391,9 @@ public:
 		if (pass>0)
 			return;
 
-		if (objectDisplayMode==EDGE) {
-			clManager->launch_generateLines(8192, 128, d_edgePos, nBody->getEdges(), nBody->getPos(), edgeCnt, edgeOffset);
+		if (objectDisplayMode!=EDGE) {
+			//clManager->launch_generateLines(8192, 128, d_edgePos, nBody->getEdges(), nBody->getPos(), edgeCnt, edgeOffset);
 
-		} else {
 			// run kernels to generate geometry
 			computeIsosurface();
 
@@ -375,7 +521,7 @@ public:
 		if( !bQATest) {
 			createVBO(&posVbo, maxVerts*sizeof(float)*4, d_pos);
 			createVBO(&normalVbo, maxVerts*sizeof(float)*3, d_normal);
-			createVBO(&edgePosVbo, edgeCnt*2*sizeof(float)*4, d_edgePos);
+			//createVBO(&edgePosVbo, edgeCnt*2*sizeof(float)*4, d_edgePos);
 		}
 
 		// allocate device memory
@@ -500,32 +646,34 @@ public:
 class VisualizationObject: public vl::Object
 {
 public:
-	VisualizationObject(ObjectAnimator *animator, vl::ref<vl::Actor> actor) {
-		this->animator=animator;
-		this->actor=actor;
+	VisualizationObject(ObjectAnimator *objectAnimator, EdgesAnimator *edgesAnimator, vl::ref<vl::Actor> objectActor, vl::ref<vl::Actor> edgesActor) {
+		this->objectAnimator=objectAnimator;
+		this->edgesAnimator=edgesAnimator;
+		this->objectActor=objectActor;
+		this->edgesActor=edgesActor;
 	}
 
 	void setPointRadius(float radius) {
-		animator->setRadius(radius);
+		objectAnimator->setRadius(radius);
 	}
 
 	float getPointRadius() {
-		return animator->radius;
+		return objectAnimator->radius;
 	}
 
 	float getMCIsoValue() {
-		return animator->isoValue;
+		return objectAnimator->isoValue;
 	}
 
 	void setMCIsoValue(float isoValue) {
-		animator->setIsoValue(isoValue);
+		objectAnimator->setIsoValue(isoValue);
 	}
 
 	void setObjectDisplayMode(displayMode objectDisplayMode) {
-		if (animator->objectDisplayMode != objectDisplayMode) {
-			animator->setObjectDisplayMode(objectDisplayMode);
+		if (objectAnimator->objectDisplayMode != objectDisplayMode) {
+			objectAnimator->setObjectDisplayMode(objectDisplayMode);
 			if (objectDisplayMode == NORMAL) {
-				animator->uploadColorIntensities();
+				objectAnimator->uploadColorIntensities();
 				// setup the effect to be used to render the cube
 				vl::ref<vl::Effect> effect = new vl::Effect;
 				// enable depth test and lighting
@@ -542,20 +690,22 @@ public:
 				glsl->attachShader( new vl::GLSLFragmentShader("./glsl/perpixellight_interlaced.fs") );
 
 				effect->shader()->setRenderState(glsl.get());
-				actor->setLod(0, animator->getNewSurfaceGeometry());
-				actor->setEffect(effect.get());
+				objectActor->setLod(0, objectAnimator->getNewSurfaceGeometry());
+				objectActor->setEffect(effect.get());
 			} else if(objectDisplayMode == EDGE) {
-				actor->setLod(0, animator->getNewEdgesGeometry());
+				objectActor->setLod(0, objectAnimator->getNewEdgesGeometry());
 				vl::ref<vl::Effect> effect = new vl::Effect;
 				effect->shader()->enable(vl::EN_DEPTH_TEST);
-				actor->setEffect(effect.get());
+				objectActor->setEffect(effect.get());
 			}
 		}
 	}
 
-protected:
-	ObjectAnimator *animator;
-	vl::ref<vl::Actor> actor;
+//protected:
+	ObjectAnimator *objectAnimator;
+	EdgesAnimator *edgesAnimator;
+	vl::ref<vl::Actor> objectActor;
+	vl::ref<vl::Actor> edgesActor;
 };
 
 class MCApplet: public vl::Applet
@@ -591,14 +741,17 @@ public:
 		// bind the Transform with the transform tree of the rendring pipeline
 		rendering()->as<vl::Rendering>()->transform()->addChild( transform.get() );
 
+		vl::Light *light = new vl::Light;
+
 		// setup the effect to be used to render the cube
 		vl::ref<vl::Effect> effect = new vl::Effect;
 		// enable depth test and lighting
 		effect->shader()->enable(vl::EN_DEPTH_TEST);
+		//effect->shader()->gocDepthMask()->set(true);
 
 		effect->shader()->enable(vl::EN_NORMALIZE);
 		// add a Light to the scene, since no Transform is associated to the Light it will follow the camera
-		effect->shader()->setRenderState( new vl::Light, 0 );
+		effect->shader()->setRenderState( light, 0 );
 		// enable the standard OpenGL lighting
 		effect->shader()->enable(vl::EN_LIGHTING);
 
@@ -613,7 +766,25 @@ public:
 		vl::ref<vl::Actor> actor=scene_manager->tree()->addActor( animator->getNewSurfaceGeometry(), effect.get(), transform.get());
 		actor->actorEventCallbacks()->push_back(animator);
 
-		VisualizationObject *object = new VisualizationObject(animator, actor);
+		//EDGES
+
+		EdgesAnimator *edgesAnimator = new EdgesAnimator(clManager, nbody, edgeCnt, edgeOffset);
+
+		vl::ref<vl::Effect> edgesEffect = new vl::Effect;
+		edgesEffect->shader()->enable(vl::EN_DEPTH_TEST);
+		edgesEffect->shader()->enable(vl::EN_LIGHTING);
+		//edgesEffect->shader()->gocDepthFunc()->set(vl::FU_NEVER);
+		edgesEffect->shader()->setRenderState( light, 0 );
+		edgesEffect->shader()->gocMaterial()->setDiffuse( vl::green);
+
+		transform = new vl::Transform;
+		// bind the Transform with the transform tree of the rendring pipeline
+		rendering()->as<vl::Rendering>()->transform()->addChild( transform.get() );
+
+		vl::ref<vl::Actor> edgesActor = new vl::Actor(edgesAnimator->getNewEdgesGeometry(), edgesEffect.get(), transform.get());
+		edgesActor->actorEventCallbacks()->push_back(edgesAnimator);
+
+		VisualizationObject *object = new VisualizationObject(animator, edgesAnimator, actor, edgesActor);
 		objects->push_back(object);
 	}
 
@@ -735,12 +906,42 @@ public:
 				uiSetForces(3, configData->objectData[i].force[2], i+1);
 				configData->objectData[i].change = false;
 			}
-			objects->at(i)->setObjectDisplayMode(configData->objectData[i].mode);
+			displayMode objectDisplayMode = configData->objectData[i].mode;
+			VisualizationObject *object = objects->at(i);
+			if (object->objectAnimator->objectDisplayMode != objectDisplayMode) {
+				object->objectAnimator->setObjectDisplayMode(objectDisplayMode);
+				if (objectDisplayMode == NORMAL) {
+					scene_manager->tree()->eraseActor(object->edgesActor.get());
+					scene_manager->tree()->eraseActor(object->objectActor.get());
+					object->objectAnimator->uploadColorIntensities();
+					scene_manager->tree()->addActor(object->objectActor.get());
+				} else if(objectDisplayMode == EDGE) {
+					scene_manager->tree()->eraseActor(object->objectActor.get());
+					scene_manager->tree()->addActor(object->edgesActor.get());
+					/*
+					vl::ref<vl::Effect> effect = new vl::Effect;
+					effect->shader()->enable(vl::EN_DEPTH_TEST);
+					effect->shader()->enable(vl::EN_LIGHTING);
+					effect->shader()->setRenderState( new vl::Light, 0 );
+
+					transform = new vl::Transform;
+					rendering()->as<vl::Rendering>()->transform()->addChild( transform.get() );
+
+					vl::ref<vl::Actor> actor = scene_manager->tree()->addActor(object->edgesAnimator->getNewEdgesGeometry(), effect.get(), transform.get());
+					actor->actorEventCallbacks()->push_back(object->edgesAnimator);*/
+				} else if(objectDisplayMode == TENSION) {
+					scene_manager->tree()->eraseActor(object->edgesActor.get());
+					scene_manager->tree()->eraseActor(object->objectActor.get());
+					object->objectAnimator->uploadColorIntensities();
+					scene_manager->tree()->addActor(object->objectActor.get());
+				}
+			}
+
 		}
 		//bordersActor->actorEventCallbacks()->push_back( new vl::DepthSortCallback );
 		//run kernels to update particle positions
 		nbody->update(m_timestep);
-		//printf("%f\n",fps());
+		printf("%f\n",fps());
 	}
 
 	void TranslatePositions(int count, float* pos, int pAct, int numObjects) {
@@ -1469,6 +1670,10 @@ public:
 
 	vl::Collection<VisualizationObject>* getObjects() {
 		return objects;
+	}
+
+	int getFps() {
+		return fps();
 	}
 
 

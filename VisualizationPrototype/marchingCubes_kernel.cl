@@ -25,12 +25,25 @@ void generateLines(__global float4 *edgePos, __global float4 *edges, __global fl
 	int index = get_global_id(0);
 	int inputIndex = index + edgeOffset;
 	int outputIndex = index * 2;
+	float4 vertex1, vertex2;
 	
 	if (index < edgeCount) {
-		if (edges[inputIndex].w == 1) {
-			edgePos[outputIndex] = points[(int)edges[inputIndex].x];
-			edgePos[outputIndex+1] = points[(int)edges[inputIndex].y];
-		}		
+		//if (edges[inputIndex].w == 1) {
+			//edgePos[outputIndex] = points[(int)edges[inputIndex].x];
+			//edgePos[outputIndex+1] = points[(int)edges[inputIndex].y];
+			vertex1.x = -1.0f + (points[(int)edges[inputIndex].x].x/16.0f);
+			vertex1.y = -1.0f + (points[(int)edges[inputIndex].x].y/16.0f);
+			vertex1.z = -1.0f + (points[(int)edges[inputIndex].x].z/16.0f);
+			vertex1.w = 1.0f;
+
+			vertex2.x = -1.0f + (points[(int)edges[inputIndex].y].x/16.0f);
+			vertex2.y = -1.0f + (points[(int)edges[inputIndex].y].y/16.0f);
+			vertex2.z = -1.0f + (points[(int)edges[inputIndex].y].z/16.0f);
+			vertex2.w = 1.0f;
+
+			edgePos[outputIndex] = vertex1;
+			edgePos[outputIndex+1] = vertex2;
+		//}		
 	}
 }
 

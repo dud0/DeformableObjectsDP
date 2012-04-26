@@ -5,6 +5,8 @@ INCLUDEPATH += . Perlin
 INCLUDEPATH +=	/usr/local/cuda/include
 INCLUDEPATH +=	/home/miki/workspace/CUDA_SDK/NVIDIA_GPU/shared/inc
 INCLUDEPATH +=	/home/miki/workspace/CUDA_SDK/NVIDIA_GPU/OpenCL/common/inc
+INCLUDEPATH +=	/home/dud0/NVIDIA_GPU_Computing_SDK/shared/inc
+INCLUDEPATH +=	/home/dud0/NVIDIA_GPU_Computing_SDK/OpenCL/common/inc
 
 LIBS += -lVLCore
 LIBS += -lVLGraphics
@@ -13,6 +15,8 @@ LIBS += -lOpenCL
 LIBS += -lVLQt4
 LIBS += -L/home/miki/workspace/CUDA_SDK/NVIDIA_GPU/shared/lib -lshrutil_x86_64
 LIBS += -L/home/miki/workspace/CUDA_SDK/NVIDIA_GPU/OpenCL/common/lib -loclUtil_x86_64
+LIBS += -L/home/dud0/NVIDIA_GPU_Computing_SDK/shared/lib -lshrutil_x86_64
+LIBS += -L/home/dud0/NVIDIA_GPU_Computing_SDK/OpenCL/common/lib -loclUtil_x86_64
 
 # Input
 HEADERS += BaseDemo.hpp \
