@@ -1,6 +1,7 @@
-oclScan_launcher.d: ../oclScan_launcher.cpp ../oclScan_common.h \
- /home/dud0/NVIDIA_GPU_Computing_SDK/OpenCL/common/inc/oclUtils.h \
- /home/dud0/NVIDIA_GPU_Computing_SDK/shared/inc/shrUtils.h \
+oclScan_launcher.d oclScan_launcher.o: ../oclScan_launcher.cpp \
+ ../oclScan_common.h \
+ /home/miki/workspace/CUDA\ SDK/NVIDIA_GPU/OpenCL/common/inc/oclUtils.h \
+ /home/miki/workspace/CUDA\ SDK/NVIDIA_GPU/shared/inc/shrUtils.h \
  /usr/local/cuda/include/CL/opencl.h /usr/local/cuda/include/CL/cl.h \
  /usr/local/cuda/include/CL/cl_platform.h \
  /usr/local/cuda/include/CL/cl_gl.h \
@@ -9,9 +10,9 @@ oclScan_launcher.d: ../oclScan_launcher.cpp ../oclScan_common.h \
 
 ../oclScan_common.h:
 
-/home/dud0/NVIDIA_GPU_Computing_SDK/OpenCL/common/inc/oclUtils.h:
+/home/miki/workspace/CUDA\ SDK/NVIDIA_GPU/OpenCL/common/inc/oclUtils.h:
 
-/home/dud0/NVIDIA_GPU_Computing_SDK/shared/inc/shrUtils.h:
+/home/miki/workspace/CUDA\ SDK/NVIDIA_GPU/shared/inc/shrUtils.h:
 
 /usr/local/cuda/include/CL/opencl.h:
 

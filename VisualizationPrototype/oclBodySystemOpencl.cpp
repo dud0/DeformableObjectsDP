@@ -213,9 +213,8 @@ void BodySystemOpenCL::update(float deltaTime)
         			m_dForces[m_currentRead],
         			deltaTime,
         			m_numBodies, m_p, m_q,
-        			1);
+       			1);
 */
-
     	integrateSystem(cqCommandQueue,
     			intBod_kernel,
     			m_dPos[m_currentWrite],
@@ -266,12 +265,12 @@ float* BodySystemOpenCL::getArray(BodyArray array)
             ddata = m_dVel[m_currentRead];
             nB = m_numBodies;
             break;
-        case BODYSYSTEM_F:
+        case BODYSYSTEM_F: //externe
         	hdata = m_hF;
         	ddata = m_dF[m_currentRead];
         	nB = m_numBodies;
         	break;
-        case BODYSYSTEM_FORCES:
+        case BODYSYSTEM_FORCES: //interne
         	hdata = m_hForces;
         	ddata = m_dForces[m_currentRead];
         	nB = m_numBodies;

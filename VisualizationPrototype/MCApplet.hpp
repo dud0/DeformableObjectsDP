@@ -729,12 +729,18 @@ public:
 		for (int i=0; i<objects->size(); i++) {
 			objects->at(i)->setPointRadius(configData->objectData[i].radius);
 			objects->at(i)->setMCIsoValue(configData->objectData[i].isoValue);
+			if (configData->objectData[i].change == true) {
+				uiSetForces(1, configData->objectData[i].force[0], i+1);
+				uiSetForces(2, configData->objectData[i].force[1], i+1);
+				uiSetForces(3, configData->objectData[i].force[2], i+1);
+				configData->objectData[i].change = false;
+			}
 			objects->at(i)->setObjectDisplayMode(configData->objectData[i].mode);
 		}
 		//bordersActor->actorEventCallbacks()->push_back( new vl::DepthSortCallback );
 		//run kernels to update particle positions
-		//nbody->update(m_timestep);
-		printf("%f\n",fps());
+		nbody->update(m_timestep);
+		//printf("%f\n",fps());
 	}
 
 	void TranslatePositions(int count, float* pos, int pAct, int numObjects) {
@@ -1516,11 +1522,11 @@ protected:
 		nEdges =0;
 		edgeLength = 0;
 
-		m_timestep=0.005f;
+		m_timestep=0.01f;
 		m_clusterScale=1.54f;
 		m_velocityScale=1.0f;
 		m_softening=0.1f;
-		m_damping=0.8f;
+		m_damping=0.95f;
 		m_pointSize=5.0f;
 		m_x=0;
 		m_y=-2;
