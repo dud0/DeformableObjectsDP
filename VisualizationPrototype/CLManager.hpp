@@ -30,6 +30,7 @@ public:
 	cl_kernel compactVoxelsKernel;
 	cl_kernel generateTriangles2Kernel;
 	cl_kernel calcColorIntensitiesTensionKernel;
+	cl_kernel generateLinesKernel;
 	cl_int ciErrNum;
 
 	cl_bool g_glInterop;
@@ -160,6 +161,8 @@ public:
 
 		calcColorIntensitiesTensionKernel = clCreateKernel(cpProgram, "calcColorIntensitiesTension", &ciErrNum);
 
+		generateLinesKernel = clCreateKernel(cpProgram, "generateLines", &ciErrNum);
+
 		// Setup Scan
 		initScan(cxGPUContext, cqCommandQueue);
 	}
@@ -187,8 +190,10 @@ public:
 		if(calcColorIntensitiesTensionKernel)clReleaseKernel(calcColorIntensitiesTensionKernel);
 		if(calcFieldValueKernel)clReleaseKernel(calcFieldValueKernel);
 		if(compactVoxelsKernel)clReleaseKernel(compactVoxelsKernel);
-		if(compactVoxelsKernel)clReleaseKernel(generateTriangles2Kernel);
-		if(compactVoxelsKernel)clReleaseKernel(classifyVoxelKernel);
+		if(generateTriangles2Kernel)clReleaseKernel(generateTriangles2Kernel);
+		if(classifyVoxelKernel)clReleaseKernel(classifyVoxelKernel);
+		if(generateLinesKernel)clReleaseKernel(generateLinesKernel);
+
 		if(cpProgram)clReleaseProgram(cpProgram);
 
 		if(cqCommandQueue)clReleaseCommandQueue(cqCommandQueue);
@@ -219,6 +224,15 @@ public:
 						   d_voxelOccupied,
 						   1,
 						   numVoxels);
+	}
+
+	void launch_generateLines(size_t global_work_size, size_t local_work_size, cl_mem edgePos, cl_mem edges, cl_mem points, cl_uint edgeCnt, cl_uint edgeOffset) {
+		clSetKernelArg(generateLinesKernel, 0, sizeof(cl_mem), &edgePos);
+		clSetKernelArg(generateLinesKernel, 1, sizeof(cl_mem), &edges);
+		clSetKernelArg(generateLinesKernel, 2, sizeof(cl_mem), &points);
+		clSetKernelArg(generateLinesKernel, 3, sizeof(cl_uint), &edgeCnt);
+		clSetKernelArg(generateLinesKernel, 4, sizeof(cl_uint), &edgeOffset);
+		ciErrNum = clEnqueueNDRangeKernel(cqCommandQueue, generateLinesKernel, 1, NULL, &global_work_size, &local_work_size, 0, 0, 0);
 	}
 
 	void launch_calcColorIntensitiesTension(size_t global_work_size, size_t local_work_size, cl_mem edges, cl_mem points, cl_mem colorIntensities, cl_uint edgeCnt, cl_uint pointCnt, cl_uint offset) {

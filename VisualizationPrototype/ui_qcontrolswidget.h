@@ -1,7 +1,7 @@
 /********************************************************************************
 ** Form generated from reading UI file 'qcontrolswidget.ui'
 **
-** Created: Mon Apr 23 18:27:46 2012
+** Created: Wed Apr 25 16:13:09 2012
 **      by: Qt User Interface Compiler version 4.7.4
 **
 ** WARNING! All changes made in this file will be lost when recompiling UI file!
@@ -44,6 +44,7 @@ public:
     QGroupBox *modeSelectGroup;
     QRadioButton *normalModeRadioButton;
     QRadioButton *tensionModeRadioButton;
+    QRadioButton *edgeModeRadioButton;
 
     void setupUi(QWidget *QControlsWidgetClass)
     {
@@ -98,6 +99,9 @@ public:
         tensionModeRadioButton = new QRadioButton(modeSelectGroup);
         tensionModeRadioButton->setObjectName(QString::fromUtf8("tensionModeRadioButton"));
         tensionModeRadioButton->setGeometry(QRect(10, 60, 114, 22));
+        edgeModeRadioButton = new QRadioButton(modeSelectGroup);
+        edgeModeRadioButton->setObjectName(QString::fromUtf8("edgeModeRadioButton"));
+        edgeModeRadioButton->setGeometry(QRect(10, 90, 114, 22));
 
         retranslateUi(QControlsWidgetClass);
 
@@ -117,6 +121,7 @@ public:
         modeSelectGroup->setTitle(QApplication::translate("QControlsWidgetClass", "Display mode", 0, QApplication::UnicodeUTF8));
         normalModeRadioButton->setText(QApplication::translate("QControlsWidgetClass", "Normal", 0, QApplication::UnicodeUTF8));
         tensionModeRadioButton->setText(QApplication::translate("QControlsWidgetClass", "Tension", 0, QApplication::UnicodeUTF8));
+        edgeModeRadioButton->setText(QApplication::translate("QControlsWidgetClass", "Edge", 0, QApplication::UnicodeUTF8));
     } // retranslateUi
 
 };

@@ -21,6 +21,20 @@ sampler_t volumeSampler = CLK_NORMALIZED_COORDS_FALSE | CLK_ADDRESS_CLAMP_TO_EDG
 sampler_t tableSampler = CLK_NORMALIZED_COORDS_FALSE | CLK_ADDRESS_CLAMP_TO_EDGE | CLK_FILTER_NEAREST;
 
 __kernel
+void generateLines(__global float4 *edgePos, __global float4 *edges, __global float4 *points, uint edgeCount, uint edgeOffset) {
+	int index = get_global_id(0);
+	int inputIndex = index + edgeOffset;
+	int outputIndex = index * 2;
+	
+	if (index < edgeCount) {
+		if (edges[inputIndex].w == 1) {
+			edgePos[outputIndex] = points[(int)edges[inputIndex].x];
+			edgePos[outputIndex+1] = points[(int)edges[inputIndex].y];
+		}		
+	}
+}
+
+__kernel
 void calcColorIntensitiesTension(__global float4 *edges, __global float4 *points, __global float *colorIntensities, uint edgeCount, uint pointCount, uint offset) {
 	int index = get_global_id(0);
 	int i;

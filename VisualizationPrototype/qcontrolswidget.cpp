@@ -51,6 +51,9 @@ void QControlsWidget::showObjectData(int index) {
 	case TENSION:
 		ui.tensionModeRadioButton->setChecked(true);
 		break;
+	case EDGE:
+		ui.edgeModeRadioButton->setChecked(true);
+		break;
 	}
 }
 
@@ -65,5 +68,7 @@ void QControlsWidget::saveObjectData() {
 		configData->objectData[index].mode=NORMAL;
 	} else if (ui.tensionModeRadioButton->isChecked()) {
 		configData->objectData[index].mode=TENSION;
+	} else if (ui.edgeModeRadioButton->isChecked()) {
+		configData->objectData[index].mode=EDGE;
 	}
 }

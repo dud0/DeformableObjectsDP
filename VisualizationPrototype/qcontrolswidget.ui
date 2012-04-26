@@ -202,6 +202,19 @@
      <string>Tension</string>
     </property>
    </widget>
+   <widget class="QRadioButton" name="edgeModeRadioButton">
+    <property name="geometry">
+     <rect>
+      <x>10</x>
+      <y>90</y>
+      <width>114</width>
+      <height>22</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>Edge</string>
+    </property>
+   </widget>
   </widget>
  </widget>
  <layoutdefault spacing="6" margin="11"/>

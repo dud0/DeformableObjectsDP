@@ -49,10 +49,12 @@ using namespace std;
 class ObjectAnimator: public vl::ActorEventCallback
 {
 public:
-	ObjectAnimator(CLManager *clManager, BodySystemOpenCL *nBody, cl_uint pointCnt, cl_uint offset, float * pointPos)
+	ObjectAnimator(CLManager *clManager, BodySystemOpenCL *nBody, cl_uint pointCnt, cl_uint pointOffset, float * pointPos, cl_uint edgeCnt, cl_uint edgeOffset)
 	{
 		this->clManager = clManager;
 		this->nBody = nBody;
+
+		objectDisplayMode = NORMAL;
 
 		pArgc = NULL;
 		pArgv = NULL;
@@ -77,6 +79,7 @@ public:
 
 		d_pos = 0;
 		d_normal = 0;
+		d_edgePos = 0;
 
 		global_work_size = 128;
 		if (pointCnt<=128) {
@@ -103,7 +106,10 @@ public:
 		}
 
 		this->pointCnt = pointCnt;
-		this->offset = offset;
+		this->pointOffset = pointOffset;
+
+		this->edgeCnt = edgeCnt;
+		this->edgeOffset = edgeOffset;
 
 		d_voxelVerts = 0;
 		d_voxelVertsScan = 0;
@@ -137,12 +143,12 @@ public:
 
 	void generateColorIntensities(float * pointPos) {
 		for (int i=0; i<pointCnt;i++) {
-			colorIntensities[i]=(PerlinNoise3D(pointPos[(i+offset)*4],pointPos[(i+offset)*4 + 1],pointPos[(i+offset)*4 + 2],1.01f,2.0f,3)+1.0f)/2.0f;
+			colorIntensities[i]=(PerlinNoise3D(pointPos[(i+pointOffset)*4],pointPos[(i+pointOffset)*4 + 1],pointPos[(i+pointOffset)*4 + 2],1.01f,2.0f,3)+1.0f)/2.0f;
 			//colorIntensities[i]=0.5f;
 		}
 	}
 
-	vl::Geometry * getNewGeometry() {
+	vl::Geometry * getNewSurfaceGeometry() {
 		vl::Geometry *geom = new vl::Geometry;
 
 		vl::ref<vl::ArrayFloat4> vert4 = new vl::ArrayFloat4;
@@ -159,14 +165,29 @@ public:
 
 		geom->setNormalArray(norm3.get());
 
-		polys = new vl::DrawArrays(vl::PT_TRIANGLES, 0, 0);
+		drawMode = new vl::DrawArrays(vl::PT_TRIANGLES, 0, 0);
 
-		geom->drawCalls()->push_back(polys.get());
+		geom->drawCalls()->push_back(drawMode.get());
 
 		return geom;
 	}
 
+	vl::Geometry * getNewEdgesGeometry() {
+		vl::Geometry *geom = new vl::Geometry;
 
+		vl::ref<vl::ArrayFloat4> vert4 = new vl::ArrayFloat4;
+
+		vert4->setBufferObjectDirty(false);
+		vert4->bufferObject()->setHandle(edgePosVbo);
+
+		geom->setVertexArray(vert4.get());
+
+		drawMode = new vl::DrawArrays(vl::PT_LINES, 0, edgeCnt);
+
+		geom->drawCalls()->push_back(drawMode.get());
+
+		return geom;
+	}
 
 	////////////////////////////////////////////////////////////////////////////////
 	//! Create VBO
@@ -223,12 +244,17 @@ public:
 		if (pass>0)
 			return;
 
+		if (objectDisplayMode==EDGE) {
+			clManager->launch_generateLines(8192, 128, d_edgePos, nBody->getEdges(), nBody->getPos(), edgeCnt, edgeOffset);
+
+		} else {
+			// run kernels to generate geometry
+			computeIsosurface();
+
+			drawMode->setCount(totalVerts);
+		}
 
 
-		// run kernels to generate geometry
-		computeIsosurface();
-
-		polys->setCount(totalVerts);
 
 		vl::ref<vl::Geometry> geom = vl::cast<vl::Geometry>( renderable );
 
@@ -260,10 +286,11 @@ public:
 	float isoValue;
 
 	// device data
-	GLuint posVbo, normalVbo;
+	GLuint posVbo, normalVbo, edgePosVbo;
 
 	GLint  gl_Shader;
 
+	cl_mem d_edgePos;
 	cl_mem d_pos;
 	cl_mem d_normal;
 
@@ -273,7 +300,9 @@ public:
 	cl_mem d_colorIntensities;
 	cl_mem d_volumeData;
 	cl_uint pointCnt;
-	cl_uint offset;
+	cl_uint pointOffset;
+	cl_uint edgeCnt;
+	cl_uint edgeOffset;
 
 	cl_mem d_voxelVerts;
 	cl_mem d_voxelVertsScan;
@@ -293,7 +322,7 @@ public:
 	bool bQATest;
 	const char* cpExecutableName;
 
-	vl::ref<vl::DrawArrays> polys;
+	vl::ref<vl::DrawArrays> drawMode;
 
 
 	BodySystemOpenCL *nBody;
@@ -308,12 +337,7 @@ public:
 	}
 
 	void setObjectDisplayMode(displayMode objectDisplayMode) {
-		if (this->objectDisplayMode != objectDisplayMode) {
-			this->objectDisplayMode = objectDisplayMode;
-			if (objectDisplayMode == NORMAL) {
-				uploadColorIntensities();
-			}
-		}
+		this->objectDisplayMode = objectDisplayMode;
 	}
 
 	////////////////////////////////////////////////////////////////////////////////
@@ -347,25 +371,11 @@ public:
 		printf("grid: %d x %d x %d = %d voxels\n", gridSize[0], gridSize[1], gridSize[2], numVoxels);
 		printf("max verts = %d\n", maxVerts);
 
-		//pointCnt=729;
-		//cl_int points[729][4];
-
-		/*int i,j,k, pointIndex=0;
-
-		for(i=12;i<21;i+=1) {
-			for(j=12;j<21;j+=1) {
-				for(k=12;k<21;k+=1) {
-					points[pointIndex][0]=i;
-					points[pointIndex][1]=j;
-					points[pointIndex++][2]=k;
-				}
-			}
-		}*/
-
 		// create VBOs
 		if( !bQATest) {
 			createVBO(&posVbo, maxVerts*sizeof(float)*4, d_pos);
 			createVBO(&normalVbo, maxVerts*sizeof(float)*3, d_normal);
+			createVBO(&edgePosVbo, edgeCnt*2*sizeof(float)*4, d_edgePos);
 		}
 
 		// allocate device memory
@@ -396,12 +406,11 @@ public:
 		}
 
 		if(objectDisplayMode == TENSION) {
-			printf("\nTENSION\n");
-			clManager->launch_calcColorIntensitiesTension(global_work_size, threads, nBody->getEdges(), nBody->getPos(), d_colorIntensities, nBody->getNumEdges(), pointCnt, offset);
+			clManager->launch_calcColorIntensitiesTension(global_work_size, threads, nBody->getEdges(), nBody->getPos(), d_colorIntensities, nBody->getNumEdges(), pointCnt, pointOffset);
 		}
 
 		clManager->launch_calcFieldValue(grid, threads,
-				d_volumeData, nBody->getPos(), d_colorIntensities,pointCnt, offset, radius, gridSizeShift, gridSizeMask);
+				d_volumeData, nBody->getPos(), d_colorIntensities,pointCnt, pointOffset, radius, gridSizeShift, gridSizeMask);
 
 		// calculate number of vertices need per voxel
 		clManager->launch_classifyVoxel(grid, threads,
@@ -513,7 +522,35 @@ public:
 	}
 
 	void setObjectDisplayMode(displayMode objectDisplayMode) {
-		animator->setObjectDisplayMode(objectDisplayMode);
+		if (animator->objectDisplayMode != objectDisplayMode) {
+			animator->setObjectDisplayMode(objectDisplayMode);
+			if (objectDisplayMode == NORMAL) {
+				animator->uploadColorIntensities();
+				// setup the effect to be used to render the cube
+				vl::ref<vl::Effect> effect = new vl::Effect;
+				// enable depth test and lighting
+				effect->shader()->enable(vl::EN_DEPTH_TEST);
+
+				effect->shader()->enable(vl::EN_NORMALIZE);
+				// add a Light to the scene, since no Transform is associated to the Light it will follow the camera
+				effect->shader()->setRenderState( new vl::Light, 0 );
+				// enable the standard OpenGL lighting
+				effect->shader()->enable(vl::EN_LIGHTING);
+
+				vl::ref<vl::GLSLProgram> glsl = new vl::GLSLProgram;
+				glsl->attachShader( new vl::GLSLVertexShader("./glsl/perpixellight.vs") );
+				glsl->attachShader( new vl::GLSLFragmentShader("./glsl/perpixellight_interlaced.fs") );
+
+				effect->shader()->setRenderState(glsl.get());
+				actor->setLod(0, animator->getNewSurfaceGeometry());
+				actor->setEffect(effect.get());
+			} else if(objectDisplayMode == EDGE) {
+				actor->setLod(0, animator->getNewEdgesGeometry());
+				vl::ref<vl::Effect> effect = new vl::Effect;
+				effect->shader()->enable(vl::EN_DEPTH_TEST);
+				actor->setEffect(effect.get());
+			}
+		}
 	}
 
 protected:
@@ -548,7 +585,7 @@ public:
 		controlsWindow=window;
 	}*/
 
-	void addVisualizationObject(int pointCnt, int offset, float * pos) {
+	void addVisualizationObject(int pointCnt, int pointOffset, float * pos, int edgeCnt, int edgeOffset) {
 		// allocate the Transform
 		transform = new vl::Transform;
 		// bind the Transform with the transform tree of the rendring pipeline
@@ -569,18 +606,11 @@ public:
 		glsl->attachShader( new vl::GLSLVertexShader("./glsl/perpixellight.vs") );
 		glsl->attachShader( new vl::GLSLFragmentShader("./glsl/perpixellight_interlaced.fs") );
 
-		vl::ref<vl::GLSLVertexShader>   noise_vs   = new vl::GLSLVertexShader("./glsl/noise.vs");
-		vl::ref<vl::GLSLFragmentShader> noise3D_fs = new vl::GLSLFragmentShader("./glsl/noise3D.glsl");
-
-		/*glsl->attachShader( noise_vs.get() );
-		glsl->attachShader( new vl::GLSLFragmentShader("./glsl/marble.fs") );
-		glsl->attachShader( noise3D_fs.get() );*/
-
 		effect->shader()->setRenderState(glsl.get());
 
-		ObjectAnimator *animator = new ObjectAnimator(clManager, nbody, pointCnt, offset, pos);
+		ObjectAnimator *animator = new ObjectAnimator(clManager, nbody, pointCnt, pointOffset, pos, edgeCnt, edgeOffset);
 
-		vl::ref<vl::Actor> actor=scene_manager->tree()->addActor( animator->getNewGeometry(), effect.get(), transform.get());
+		vl::ref<vl::Actor> actor=scene_manager->tree()->addActor( animator->getNewSurfaceGeometry(), effect.get(), transform.get());
 		actor->actorEventCallbacks()->push_back(animator);
 
 		VisualizationObject *object = new VisualizationObject(animator, actor);
@@ -692,45 +722,6 @@ public:
 	  memcpy(vert3->ptr(), verts, sizeof(verts));
 	   return geom;
 	}
-
-	vl::ref<vl::Geometry> makeBox( const vl::vec3& origin, vl::real xside, vl::real yside, vl::real zside)
-		{
-		vl::ref<vl::Geometry> geom = new vl::Geometry;
-	   geom->setObjectName("Box");
-
-	   vl::ref<vl::ArrayFloat3> vert3 = new vl::ArrayFloat3;
-	   geom->setVertexArray(vert3.get());
-
-	   vl::real x=xside/2.0f;
-	   vl::real y=yside/2.0f;
-	   vl::real z=zside/2.0f;
-
-	   vl::fvec3 a0( (vl::fvec3)(vl::vec3(+x,+y,+z) + origin) );
-	   vl::fvec3 a1( (vl::fvec3)(vl::vec3(-x,+y,+z) + origin) );
-	   vl::fvec3 a2( (vl::fvec3)(vl::vec3(-x,-y,+z) + origin) );
-	   vl::fvec3 a3( (vl::fvec3)(vl::vec3(+x,-y,+z) + origin) );
-	   vl::fvec3 a4( (vl::fvec3)(vl::vec3(+x,+y,-z) + origin) );
-	   vl::fvec3 a5( (vl::fvec3)(vl::vec3(-x,+y,-z) + origin) );
-	   vl::fvec3 a6( (vl::fvec3)(vl::vec3(-x,-y,-z) + origin) );
-	   vl::fvec3 a7( (vl::fvec3)(vl::vec3(+x,-y,-z) + origin) );
-
-
-
-	   vl::fvec3 verts[] = {
-	     a1, a2, a3, a3, a0, a1,
-	     a2, a6, a7, a7, a3, a2,
-	     a6, a5, a4, a4, a7, a6,
-	     a5, a1, a0, a0, a4, a5,
-	     a0, a3, a7, a7, a4, a0,
-	     a5, a6, a2, a2, a1, a5
-	   };
-
-	   vl::ref<vl::DrawArrays> polys = new vl::DrawArrays(vl::PT_TRIANGLES, 0, 36);
-	   geom->drawCalls()->push_back( polys.get() );
-	   vert3->resize( 36 );
-	  memcpy(vert3->ptr(), verts, sizeof(verts));
-	   return geom;
-	 }
 
 	// called every frame
 	virtual void updateScene()
@@ -1276,7 +1267,20 @@ public:
 
 		    tmpINC = edgeLength;
 
+		    int currentObject=0;
+		    int pointCountCheckpoint=objectsPointCounts[0];
+		    int totalEdges=0;
+
 		    for (int i = 0; i < numBodies; i++) {
+
+		    	if (i==pointCountCheckpoint) {
+
+			    	objectsEdgeCounts[currentObject]=n-totalEdges;
+			    	totalEdges=n;
+		    		currentObject++;
+		    		pointCountCheckpoint+=objectsPointCounts[currentObject];
+		    	}
+
 		    	for (int j = 0; j < numBodies; j++) {
 		    		/*
 		    		 * 1 = 3 kusy
@@ -1297,31 +1301,6 @@ public:
 		    		/*
 		    		 * 2 = 6 kusov
 		    		 */
-
-		    	/*	else if (bZY && (hPos[j*4+2] == (hPos[i*4+2] + tmpINC)) && (hPos[j*4+1] == (hPos[i*4+1] + tmpINC)) && (hPos[j*4] == hPos[i*4])) {
-		    			n++;
-		    			bZY = false;
-		    		}
-		    		else if (bZmY && (hPos[j*4+2] == (hPos[i*4+2] + tmpINC)) && (hPos[j*4+1] == (hPos[i*4+1] - tmpINC)) && (hPos[j*4] == hPos[i*4])) {
-		    			n++;
-		    			bZmY = false;
-		    		}
-		    		else if (bYX && (hPos[j*4+1] == (hPos[i*4+1] + tmpINC)) && (hPos[j*4] == (hPos[i*4] + tmpINC)) && (hPos[j*4+2] == hPos[i*4+2])) {
-		    			n++;
-		    			bYX = false;
-		    		}
-		    		else if (bYmX && (hPos[j*4+1] == (hPos[i*4+1] + tmpINC)) && (hPos[j*4] == (hPos[i*4] - tmpINC)) && (hPos[j*4+2] == hPos[i*4+2])) {
-		    			n++;
-		    			bYmX = false;
-		    		}
-		    		else if (bZX && (hPos[j*4+2] == (hPos[i*4+2] + tmpINC)) && (hPos[j*4] == (hPos[i*4] + tmpINC)) && (hPos[j*4+1] == hPos[i*4+1])) {
-		    			n++;
-		    			bZX = false;
-		    		}
-		    		else if (bZmX && (hPos[j*4+2] == (hPos[i*4+2] + tmpINC)) && (hPos[j*4] == (hPos[i*4] - tmpINC)) && (hPos[j*4+1] == hPos[i*4+1])) {
-		    			n++;
-		    			bZmX = false;
-		    		}*/
 		    		else if (InInterval(hPos[i*4] + (tmpINC*2), 0.1, hPos[j*4]) && bZX && (hPos[j*4+1] == hPos[i*4+1]) && (hPos[j*4+2] == hPos[i*4+2])) { // x
 		    			n++;
 
@@ -1357,6 +1336,8 @@ public:
 		    			bmXmYZ = false;
 		    		}
 		    	}
+
+
 		    	//shrLog("\n");
 		    	bX = true;
 		    	bY = true;
@@ -1364,6 +1345,11 @@ public:
 		    	bZY = true, bZmY = true, bYX = true, bYmX = true, bZX = true, bZmX = true;
 		    	bmXYZ = true, bXYZ = true, bXmYZ = true, bmXmYZ = true;
 		    }
+
+		    /*	KONTROLNY VYPIS
+		     * for (int asdasd=0; asdasd<objectCount;asdasd++) {
+		    	printf("\nOBJEKT %d: %d\n", asdasd, objectsEdgeCounts[asdasd]);
+		    }*/
 
 		    shrLog("\nedges: %d", n);
 
@@ -1510,6 +1496,10 @@ protected:
 	float m_pointSize;
 	float m_x, m_y, m_z;
 
+	int objectsPointCounts[20];
+	int objectsEdgeCounts[20];
+	int objectCount;
+
 	//--
 
 	void simulationInit() {
@@ -1549,8 +1539,7 @@ protected:
 
 		numBodies = 0;
 		int newBodiesCount;
-		int objectsPointCounts[20];
-		int objectCount = 0;
+		objectCount = 0;
 
 		while (infile >> s) {
 			newBodiesCount = getNumBodies((char*)s.c_str());
@@ -1596,13 +1585,18 @@ protected:
 			p = numBodies;
 		}
 
+		for (int i=0;i<20;i++) {
+			objectsEdgeCounts[i]=0;
+		}
+
 		InitNbody(clManager->cdDevices[clManager->uiDeviceUsed], clManager->cxGPUContext, clManager->cqCommandQueue, numBodies, p, q, false, false, NBODY_CONFIG_SHELL);
 		ResetSim(nbody, numBodies, NBODY_CONFIG_SHELL, false);
 
-		int total = 0;
+		int totalPoints = 0, totalEdges = 0;
 		for (int i=0;i<objectCount;i++) {
-			addVisualizationObject(objectsPointCounts[i], total, hPos);
-			total+=objectsPointCounts[i];
+			addVisualizationObject(objectsPointCounts[i], totalPoints, hPos, objectsEdgeCounts[i], totalEdges);
+			totalPoints+=objectsPointCounts[i];
+			totalEdges+=objectsEdgeCounts[i];
 		}
 	}
 
