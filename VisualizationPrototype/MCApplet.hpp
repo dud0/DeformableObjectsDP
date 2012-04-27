@@ -1727,11 +1727,11 @@ protected:
 		nEdges =0;
 		edgeLength = 0;
 
-		m_timestep=0.01f;
+		m_timestep=0.5f;
 		m_clusterScale=1.54f;
 		m_velocityScale=1.0f;
 		m_softening=0.1f;
-		m_damping=0.95f;
+		m_damping=1.0f;
 		m_pointSize=5.0f;
 		m_x=0;
 		m_y=-2;
