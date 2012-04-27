@@ -9,6 +9,7 @@ public:
 	float radius, isoValue;
 	float force[3];
 	displayMode mode;
+	float colorR, colorG, colorB, colorA;
 };
 
 class ConfigurationData {
@@ -22,8 +23,19 @@ public:
 			objectData[i].force[1]=0.0f;
 			objectData[i].force[2]=0.0f;
 			objectData[i].mode= NORMAL;
+			objectData[i].colorR = 0.9f;
+			objectData[i].colorG = 0.1f;
+			objectData[i].colorB = 0.1f;
+			objectData[i].colorA = 1.0f;
 		}
 
+		objectData[1].colorR = 0.1f;
+		objectData[1].colorG = 0.9f;
+		objectData[1].colorB = 0.1f;
+
+		objectData[2].colorR = 0.1f;
+		objectData[2].colorG = 0.1f;
+		objectData[2].colorB = 0.9f;
 	}
 
 	virtual ~ConfigurationData() {
