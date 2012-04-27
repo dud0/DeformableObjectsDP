@@ -21,28 +21,55 @@ sampler_t volumeSampler = CLK_NORMALIZED_COORDS_FALSE | CLK_ADDRESS_CLAMP_TO_EDG
 sampler_t tableSampler = CLK_NORMALIZED_COORDS_FALSE | CLK_ADDRESS_CLAMP_TO_EDGE | CLK_FILTER_NEAREST;
 
 __kernel
-void generateLines(__global float4 *edgePos, __global float4 *edges, __global float4 *points, uint edgeCount, uint edgeOffset) {
+void generateLines(__global float4 *edgePos, __global float4 *edgeColor, __global float4 *edges, __global float4 *points, uint edgeCount, uint edgeOffset) {
 	int index = get_global_id(0);
 	int inputIndex = index + edgeOffset;
 	int outputIndex = index * 2;
 	float4 vertex1, vertex2;
+	float4 color1, color2;
+	int point1, point2;
+	float3 tmpVec;
 	
 	if (index < edgeCount) {
 		//if (edges[inputIndex].w == 1) {
 			//edgePos[outputIndex] = points[(int)edges[inputIndex].x];
 			//edgePos[outputIndex+1] = points[(int)edges[inputIndex].y];
-			vertex1.x = -1.0f + (points[(int)edges[inputIndex].x].x/16.0f);
-			vertex1.y = -1.0f + (points[(int)edges[inputIndex].x].y/16.0f);
-			vertex1.z = -1.0f + (points[(int)edges[inputIndex].x].z/16.0f);
+			point1 = edges[inputIndex].x;
+			point2 = edges[inputIndex].y;
+
+			vertex1.x = -1.0f + (points[point1].x/16.0f);
+			vertex1.y = -1.0f + (points[point1].y/16.0f);
+			vertex1.z = -1.0f + (points[point1].z/16.0f);
 			vertex1.w = 1.0f;
 
-			vertex2.x = -1.0f + (points[(int)edges[inputIndex].y].x/16.0f);
-			vertex2.y = -1.0f + (points[(int)edges[inputIndex].y].y/16.0f);
-			vertex2.z = -1.0f + (points[(int)edges[inputIndex].y].z/16.0f);
+			vertex2.x = -1.0f + (points[point2].x/16.0f);
+			vertex2.y = -1.0f + (points[point2].y/16.0f);
+			vertex2.z = -1.0f + (points[point2].z/16.0f);
 			vertex2.w = 1.0f;
 
 			edgePos[outputIndex] = vertex1;
 			edgePos[outputIndex+1] = vertex2;
+
+			color1.x = 1.0f;
+			color1.y = 0.0f;
+			color1.z = 0.0f;
+			color1.w = 1.0f;
+
+			color2.x = 0.0f;
+			color2.y = 1.0f;
+			color2.z = 0.0f;
+			color2.w = 1.0f;
+
+			tmpVec.x = points[point1].x - points[point2].x;
+			tmpVec.y = points[point1].y - points[point2].y;
+			tmpVec.z = points[point1].z - points[point2].z;
+
+			float edgeLength = sqrt(tmpVec.x*tmpVec.x + tmpVec.y*tmpVec.y + tmpVec.z*tmpVec.z);
+
+			float tension = clamp((edgeLength)/(edges[inputIndex].z*3), 0.0f, 1.0f);
+
+			edgeColor[outputIndex] = mix(color2, color1, tension);
+			edgeColor[outputIndex+1] = mix(color2, color1, tension);;
 		//}		
 	}
 }
@@ -242,7 +269,7 @@ void getFVG(float4 *field,float4 *gridPoint, __global float2 *volumeData, int4 g
 
 __kernel
 void
-generateTriangles2(__global float4 *pos, __global float *norm, __global uint *compactedVoxelArray, __global uint *numVertsScanned, 
+generateTriangles2(__global float4 *pos, __global float *norm, __global float4 *color, __global uint *compactedVoxelArray, __global uint *numVertsScanned, 
                    __global float2 *volumeData,
                    uint4 gridSize, uint4 gridSizeShift, uint4 gridSizeMask,
                    float4 voxelSize, float isoValue, uint activeVoxels, uint maxVerts, 
@@ -319,25 +346,32 @@ generateTriangles2(__global float4 *pos, __global float *norm, __global uint *co
     // output triangle vertices
     uint numVerts = read_imageui(numVertsTex, tableSampler, (int2)(cubeindex,0)).x;
 
+    float4 color1 = (float4)(1.0f,1.0f,1.0f,1.0f);
+    float4 color2 = (float4)(1.0f,0.0f,0.0f,1.0f);
+
     for(int i=0; i<numVerts; i+=3) {
         uint index = numVertsScanned[voxel] + i;
 
         float4 v[3];
 	float4 n[3];
+	float4 c[3];
         uint edge;
         edge = read_imageui(triTex, tableSampler, (int2)(i,cubeindex)).x;
         v[0] = vertlist[edge];
-        //v[0].w = 0.0f;
+	c[0] = mix(color1, color2, v[0].w);
+        v[0].w = 1.0f;
 	n[0] = normlist[edge];
 
         edge = read_imageui(triTex, tableSampler, (int2)(i+1,cubeindex)).x;
         v[1] = vertlist[edge];
-        //v[1].w = 0.5f;
+	c[1] = mix(color1, color2, v[1].w);
+        v[1].w = 1.0f;
 	n[1] = normlist[edge];
 
         edge = read_imageui(triTex, tableSampler, (int2)(i+2,cubeindex)).x;
         v[2] = vertlist[edge];
-        //v[2].w = 0.9f;
+	c[2] = mix(color1, color2, v[2].w);
+        v[2].w = 1.0f;
 	n[2] = normlist[edge];
 
         // calculate triangle surface normal
@@ -345,16 +379,19 @@ generateTriangles2(__global float4 *pos, __global float *norm, __global uint *co
 
         if (index < (maxVerts - 3)) {
 		pos[index] = v[0];
+		color[index] = c[0];
         	norm[index*3] = n[0].x;
 		norm[index*3 + 1] = n[0].y;
 		norm[index*3 + 2] = n[0].z;
 
 	        pos[index+1] = v[1];
+		color[index+1] = c[1];
         	norm[index*3 + 3] = n[1].x;
 		norm[index*3 + 4] = n[1].y;
 		norm[index*3 + 5] = n[1].z;
 
 	        pos[index+2] = v[2];
+		color[index+2] = c[2];
         	norm[index*3 + 6] = n[2].x;
 		norm[index*3 + 7] = n[2].y;
 		norm[index*3 + 8] = n[2].z;

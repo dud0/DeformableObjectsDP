@@ -226,12 +226,13 @@ public:
 						   numVoxels);
 	}
 
-	void launch_generateLines(size_t global_work_size, size_t local_work_size, cl_mem edgePos, cl_mem edges, cl_mem points, cl_uint edgeCnt, cl_uint edgeOffset) {
+	void launch_generateLines(size_t global_work_size, size_t local_work_size, cl_mem edgePos, cl_mem edgeColor, cl_mem edges, cl_mem points, cl_uint edgeCnt, cl_uint edgeOffset) {
 		clSetKernelArg(generateLinesKernel, 0, sizeof(cl_mem), &edgePos);
-		clSetKernelArg(generateLinesKernel, 1, sizeof(cl_mem), &edges);
-		clSetKernelArg(generateLinesKernel, 2, sizeof(cl_mem), &points);
-		clSetKernelArg(generateLinesKernel, 3, sizeof(cl_uint), &edgeCnt);
-		clSetKernelArg(generateLinesKernel, 4, sizeof(cl_uint), &edgeOffset);
+		clSetKernelArg(generateLinesKernel, 1, sizeof(cl_mem), &edgeColor);
+		clSetKernelArg(generateLinesKernel, 2, sizeof(cl_mem), &edges);
+		clSetKernelArg(generateLinesKernel, 3, sizeof(cl_mem), &points);
+		clSetKernelArg(generateLinesKernel, 4, sizeof(cl_uint), &edgeCnt);
+		clSetKernelArg(generateLinesKernel, 5, sizeof(cl_uint), &edgeOffset);
 
 		ciErrNum = clEnqueueNDRangeKernel(cqCommandQueue, generateLinesKernel, 1, NULL, &global_work_size, &local_work_size, 0, 0, 0);
 		//printf("\nERROR: %s\n", oclErrorString(ciErrNum));
@@ -297,24 +298,25 @@ public:
 
 	void
 	launch_generateTriangles2(dim3 grid, dim3 threads,
-							  cl_mem pos, cl_mem norm, cl_mem compactedVoxelArray, cl_mem numVertsScanned, cl_mem volumeData,
+							  cl_mem pos, cl_mem norm, cl_mem color, cl_mem compactedVoxelArray, cl_mem numVertsScanned, cl_mem volumeData,
 							  cl_uint gridSize[4], cl_uint gridSizeShift[4], cl_uint gridSizeMask[4],
 							  cl_float voxelSize[4], float isoValue, uint activeVoxels, uint maxVerts)
 	{
 		ciErrNum = clSetKernelArg(generateTriangles2Kernel, 0, sizeof(cl_mem), &pos);
 		ciErrNum = clSetKernelArg(generateTriangles2Kernel, 1, sizeof(cl_mem), &norm);
-		ciErrNum = clSetKernelArg(generateTriangles2Kernel, 2, sizeof(cl_mem), &compactedVoxelArray);
-		ciErrNum = clSetKernelArg(generateTriangles2Kernel, 3, sizeof(cl_mem), &numVertsScanned);
-		ciErrNum = clSetKernelArg(generateTriangles2Kernel, 4, sizeof(cl_mem), &volumeData);
-		ciErrNum = clSetKernelArg(generateTriangles2Kernel, 5, 4 * sizeof(cl_uint), gridSize);
-		ciErrNum = clSetKernelArg(generateTriangles2Kernel, 6, 4 * sizeof(cl_uint), gridSizeShift);
-		ciErrNum = clSetKernelArg(generateTriangles2Kernel, 7, 4 * sizeof(cl_uint), gridSizeMask);
-		ciErrNum = clSetKernelArg(generateTriangles2Kernel, 8, 4 * sizeof(cl_float), voxelSize);
-		ciErrNum = clSetKernelArg(generateTriangles2Kernel, 9, sizeof(float), &isoValue);
-		ciErrNum = clSetKernelArg(generateTriangles2Kernel, 10, sizeof(uint), &activeVoxels);
-		ciErrNum = clSetKernelArg(generateTriangles2Kernel, 11, sizeof(uint), &maxVerts);
-		ciErrNum = clSetKernelArg(generateTriangles2Kernel, 12, sizeof(cl_mem), &d_numVertsTable);
-		ciErrNum = clSetKernelArg(generateTriangles2Kernel, 13, sizeof(cl_mem), &d_triTable);
+		ciErrNum = clSetKernelArg(generateTriangles2Kernel, 2, sizeof(cl_mem), &color);
+		ciErrNum = clSetKernelArg(generateTriangles2Kernel, 3, sizeof(cl_mem), &compactedVoxelArray);
+		ciErrNum = clSetKernelArg(generateTriangles2Kernel, 4, sizeof(cl_mem), &numVertsScanned);
+		ciErrNum = clSetKernelArg(generateTriangles2Kernel, 5, sizeof(cl_mem), &volumeData);
+		ciErrNum = clSetKernelArg(generateTriangles2Kernel, 6, 4 * sizeof(cl_uint), gridSize);
+		ciErrNum = clSetKernelArg(generateTriangles2Kernel, 7, 4 * sizeof(cl_uint), gridSizeShift);
+		ciErrNum = clSetKernelArg(generateTriangles2Kernel, 8, 4 * sizeof(cl_uint), gridSizeMask);
+		ciErrNum = clSetKernelArg(generateTriangles2Kernel, 9, 4 * sizeof(cl_float), voxelSize);
+		ciErrNum = clSetKernelArg(generateTriangles2Kernel, 10, sizeof(float), &isoValue);
+		ciErrNum = clSetKernelArg(generateTriangles2Kernel, 11, sizeof(uint), &activeVoxels);
+		ciErrNum = clSetKernelArg(generateTriangles2Kernel, 12, sizeof(uint), &maxVerts);
+		ciErrNum = clSetKernelArg(generateTriangles2Kernel, 13, sizeof(cl_mem), &d_numVertsTable);
+		ciErrNum = clSetKernelArg(generateTriangles2Kernel, 14, sizeof(cl_mem), &d_triTable);
 
 		grid.x *= threads.x;
 		ciErrNum = clEnqueueNDRangeKernel(cqCommandQueue, generateTriangles2Kernel, 1, NULL, (size_t*) &grid, (size_t*) &threads, 0, 0, 0);
