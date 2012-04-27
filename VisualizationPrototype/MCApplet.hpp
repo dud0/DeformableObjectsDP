@@ -72,6 +72,7 @@ public:
 		bQATest = false;
 
 		createVBO(&edgePosVbo, edgeCnt*2*sizeof(float)*4, d_edgePos);
+		createVBO(&edgeColorVbo, edgeCnt*2*sizeof(float)*4, d_edgeColor);
 	}
 
 	vl::Geometry * getNewEdgesGeometry() {
@@ -83,6 +84,13 @@ public:
 		vert4->bufferObject()->setHandle(edgePosVbo);
 
 		geom->setVertexArray(vert4.get());
+
+		vl::ref<vl::ArrayFloat4> colors = new vl::ArrayFloat4();
+
+		colors->setBufferObjectDirty(false);
+		colors->bufferObject()->setHandle(edgeColorVbo);
+
+		geom->setColorArray(colors.get());
 
 		drawMode = new vl::DrawArrays(vl::PT_LINES, 0, edgeCnt*2);
 
@@ -99,21 +107,21 @@ public:
 		if (pass>0)
 			return;
 
-		cl_mem interopBuffers[] = {d_edgePos};
+		cl_mem interopBuffers[] = {d_edgePos, d_edgeColor};
 
 		if( clManager->g_glInterop ) {
 			glFlush();
-			clEnqueueAcquireGLObjects(clManager->cqCommandQueue, 1, interopBuffers, 0, 0, 0);
+			clEnqueueAcquireGLObjects(clManager->cqCommandQueue, 2, interopBuffers, 0, 0, 0);
 		}
 
 		//if (objectDisplayMode==EDGE) {
-		clManager->launch_generateLines(16384, 128, d_edgePos, nBody->getEdges(), nBody->getPos(), edgeCnt, edgeOffset);
+		clManager->launch_generateLines(16384, 128, d_edgePos, d_edgeColor, nBody->getEdges(), nBody->getPos(), edgeCnt, edgeOffset);
 		//}
-		printf("\nEDGEOFFSET: %d\n", edgeOffset);
-		printf("\nEDGECOUNT: %d\n", edgeCnt);
+		//printf("\nEDGEOFFSET: %d\n", edgeOffset);
+		//printf("\nEDGECOUNT: %d\n", edgeCnt);
 
 		if( clManager->g_glInterop ) {
-			clEnqueueReleaseGLObjects(clManager->cqCommandQueue, 1, interopBuffers, 0, 0, 0);
+			clEnqueueReleaseGLObjects(clManager->cqCommandQueue, 2, interopBuffers, 0, 0, 0);
 			clFinish( clManager->cqCommandQueue );
 		}
 
@@ -125,6 +133,7 @@ public:
 	void Cleanup(int iExitCode)
 	{
 		deleteVBO(&edgePosVbo, d_edgePos);
+		deleteVBO(&edgeColorVbo, d_edgeColor);
 	}
 
 	virtual void onActorDelete(vl::Actor*) {
@@ -168,8 +177,10 @@ public:
 
 	// device data
 	GLuint edgePosVbo;
+	GLuint edgeColorVbo;
 
 	cl_mem d_edgePos;
+	cl_mem d_edgeColor;
 
 	displayMode objectDisplayMode;
 
@@ -226,7 +237,7 @@ public:
 
 		d_pos = 0;
 		d_normal = 0;
-		d_edgePos = 0;
+		d_color = 0;
 
 		global_work_size = 128;
 		if (pointCnt<=128) {
@@ -312,24 +323,14 @@ public:
 
 		geom->setNormalArray(norm3.get());
 
+		vl::ref<vl::ArrayFloat4> color = new vl::ArrayFloat4;
+
+		color->setBufferObjectDirty(false);
+		color->bufferObject()->setHandle(colorVbo);
+
+		geom->setColorArray(color.get());
+
 		drawMode = new vl::DrawArrays(vl::PT_TRIANGLES, 0, 0);
-
-		geom->drawCalls()->push_back(drawMode.get());
-
-		return geom;
-	}
-
-	vl::Geometry * getNewEdgesGeometry() {
-		vl::Geometry *geom = new vl::Geometry;
-
-		vl::ref<vl::ArrayFloat4> vert4 = new vl::ArrayFloat4;
-
-		vert4->setBufferObjectDirty(false);
-		vert4->bufferObject()->setHandle(edgePosVbo);
-
-		geom->setVertexArray(vert4.get());
-
-		drawMode = new vl::DrawArrays(vl::PT_LINES, 0, edgeCnt);
 
 		geom->drawCalls()->push_back(drawMode.get());
 
@@ -373,6 +374,7 @@ public:
 	{
 		deleteVBO(&posVbo, d_pos);
 		deleteVBO(&normalVbo, d_normal);
+		deleteVBO(&normalVbo, d_color);
 
 		if( d_voxelVerts) clReleaseMemObject(d_voxelVerts);
 		if( d_voxelVertsScan) clReleaseMemObject(d_voxelVertsScan);
@@ -432,13 +434,13 @@ public:
 	float isoValue;
 
 	// device data
-	GLuint posVbo, normalVbo, edgePosVbo;
+	GLuint posVbo, normalVbo, colorVbo;
 
 	GLint  gl_Shader;
 
-	cl_mem d_edgePos;
 	cl_mem d_pos;
 	cl_mem d_normal;
+	cl_mem d_color;
 
 	displayMode objectDisplayMode;
 	float *colorIntensities;
@@ -521,7 +523,7 @@ public:
 		if( !bQATest) {
 			createVBO(&posVbo, maxVerts*sizeof(float)*4, d_pos);
 			createVBO(&normalVbo, maxVerts*sizeof(float)*3, d_normal);
-			//createVBO(&edgePosVbo, edgeCnt*2*sizeof(float)*4, d_edgePos);
+			createVBO(&colorVbo, maxVerts*sizeof(float)*4, d_color);
 		}
 
 		// allocate device memory
@@ -606,13 +608,13 @@ public:
 		//printf("totalVerts = %d\n", totalVerts);
 
 
-		cl_mem interopBuffers[] = {d_pos, d_normal};
+		cl_mem interopBuffers[] = {d_pos, d_normal, d_color};
 
 		// generate triangles, writing to vertex buffers
 		if( clManager->g_glInterop ) {
 			// Acquire PBO for OpenCL writing
 			glFlush();
-			clEnqueueAcquireGLObjects(clManager->cqCommandQueue, 2, interopBuffers, 0, 0, 0);
+			clEnqueueAcquireGLObjects(clManager->cqCommandQueue, 3, interopBuffers, 0, 0, 0);
 
 			//fprintf(stderr, "%d\n", ciErrNum);
 		}
@@ -623,7 +625,7 @@ public:
 			grid2.x/=2;
 			grid2.y*=2;
 		}
-		clManager->launch_generateTriangles2(grid2, NTHREADS, d_pos, d_normal,
+		clManager->launch_generateTriangles2(grid2, NTHREADS, d_pos, d_normal, d_color,
 												d_compVoxelArray,
 
 												d_voxelVertsScan, d_volumeData,
@@ -634,7 +636,7 @@ public:
 
 		if( clManager->g_glInterop ) {
 			// Transfer ownership of buffer back from CL to GL
-			clEnqueueReleaseGLObjects(clManager->cqCommandQueue, 2, interopBuffers, 0, 0, 0);
+			clEnqueueReleaseGLObjects(clManager->cqCommandQueue, 3, interopBuffers, 0, 0, 0);
 			clFinish( clManager->cqCommandQueue );
 		}
 
@@ -667,38 +669,6 @@ public:
 
 	void setMCIsoValue(float isoValue) {
 		objectAnimator->setIsoValue(isoValue);
-	}
-
-	void setObjectDisplayMode(displayMode objectDisplayMode) {
-		if (objectAnimator->objectDisplayMode != objectDisplayMode) {
-			objectAnimator->setObjectDisplayMode(objectDisplayMode);
-			if (objectDisplayMode == NORMAL) {
-				objectAnimator->uploadColorIntensities();
-				// setup the effect to be used to render the cube
-				vl::ref<vl::Effect> effect = new vl::Effect;
-				// enable depth test and lighting
-				effect->shader()->enable(vl::EN_DEPTH_TEST);
-
-				effect->shader()->enable(vl::EN_NORMALIZE);
-				// add a Light to the scene, since no Transform is associated to the Light it will follow the camera
-				effect->shader()->setRenderState( new vl::Light, 0 );
-				// enable the standard OpenGL lighting
-				effect->shader()->enable(vl::EN_LIGHTING);
-
-				vl::ref<vl::GLSLProgram> glsl = new vl::GLSLProgram;
-				glsl->attachShader( new vl::GLSLVertexShader("./glsl/perpixellight.vs") );
-				glsl->attachShader( new vl::GLSLFragmentShader("./glsl/perpixellight_interlaced.fs") );
-
-				effect->shader()->setRenderState(glsl.get());
-				objectActor->setLod(0, objectAnimator->getNewSurfaceGeometry());
-				objectActor->setEffect(effect.get());
-			} else if(objectDisplayMode == EDGE) {
-				objectActor->setLod(0, objectAnimator->getNewEdgesGeometry());
-				vl::ref<vl::Effect> effect = new vl::Effect;
-				effect->shader()->enable(vl::EN_DEPTH_TEST);
-				objectActor->setEffect(effect.get());
-			}
-		}
 	}
 
 //protected:
@@ -744,26 +714,26 @@ public:
 		vl::Light *light = new vl::Light;
 
 		// setup the effect to be used to render the cube
-		vl::ref<vl::Effect> effect = new vl::Effect;
+		vl::ref<vl::Effect> objectEffect = new vl::Effect;
 		// enable depth test and lighting
-		effect->shader()->enable(vl::EN_DEPTH_TEST);
+		objectEffect->shader()->enable(vl::EN_DEPTH_TEST);
 		//effect->shader()->gocDepthMask()->set(true);
 
-		effect->shader()->enable(vl::EN_NORMALIZE);
+		objectEffect->shader()->enable(vl::EN_NORMALIZE);
 		// add a Light to the scene, since no Transform is associated to the Light it will follow the camera
-		effect->shader()->setRenderState( light, 0 );
+		objectEffect->shader()->setRenderState( light, 0 );
 		// enable the standard OpenGL lighting
-		effect->shader()->enable(vl::EN_LIGHTING);
+		objectEffect->shader()->enable(vl::EN_LIGHTING);
 
 		vl::ref<vl::GLSLProgram> glsl = new vl::GLSLProgram;
 		glsl->attachShader( new vl::GLSLVertexShader("./glsl/perpixellight.vs") );
 		glsl->attachShader( new vl::GLSLFragmentShader("./glsl/perpixellight_interlaced.fs") );
 
-		effect->shader()->setRenderState(glsl.get());
+		objectEffect->shader()->setRenderState(glsl.get());
 
 		ObjectAnimator *animator = new ObjectAnimator(clManager, nbody, pointCnt, pointOffset, pos, edgeCnt, edgeOffset);
 
-		vl::ref<vl::Actor> actor=scene_manager->tree()->addActor( animator->getNewSurfaceGeometry(), effect.get(), transform.get());
+		vl::ref<vl::Actor> actor=scene_manager->tree()->addActor( animator->getNewSurfaceGeometry(), objectEffect.get(), transform.get());
 		actor->actorEventCallbacks()->push_back(animator);
 
 		//EDGES
@@ -772,10 +742,10 @@ public:
 
 		vl::ref<vl::Effect> edgesEffect = new vl::Effect;
 		edgesEffect->shader()->enable(vl::EN_DEPTH_TEST);
-		edgesEffect->shader()->enable(vl::EN_LIGHTING);
+		//edgesEffect->shader()->enable(vl::EN_LIGHTING);
 		//edgesEffect->shader()->gocDepthFunc()->set(vl::FU_NEVER);
-		edgesEffect->shader()->setRenderState( light, 0 );
-		edgesEffect->shader()->gocMaterial()->setDiffuse( vl::green);
+		//edgesEffect->shader()->setRenderState( light, 0 );
+		//edgesEffect->shader()->gocMaterial()->setDiffuse( vl::green);
 
 		transform = new vl::Transform;
 		// bind the Transform with the transform tree of the rendring pipeline
@@ -918,17 +888,16 @@ public:
 				} else if(objectDisplayMode == EDGE) {
 					scene_manager->tree()->eraseActor(object->objectActor.get());
 					scene_manager->tree()->addActor(object->edgesActor.get());
-					/*
-					vl::ref<vl::Effect> effect = new vl::Effect;
+					/*vl::ref<vl::Effect> effect = new vl::Effect;
 					effect->shader()->enable(vl::EN_DEPTH_TEST);
 					effect->shader()->enable(vl::EN_LIGHTING);
+					effect->shader()->enable(vl::EN_BLEND);
 					effect->shader()->setRenderState( new vl::Light, 0 );
+					effect->shader()->gocMaterial()->setTransparency(0.2);
+					effect->shader()->gocLightModel()->setTwoSide(true);
 
-					transform = new vl::Transform;
-					rendering()->as<vl::Rendering>()->transform()->addChild( transform.get() );
 
-					vl::ref<vl::Actor> actor = scene_manager->tree()->addActor(object->edgesAnimator->getNewEdgesGeometry(), effect.get(), transform.get());
-					actor->actorEventCallbacks()->push_back(object->edgesAnimator);*/
+					object->objectActor->setEffect(effect.get());*/
 				} else if(objectDisplayMode == TENSION) {
 					scene_manager->tree()->eraseActor(object->edgesActor.get());
 					scene_manager->tree()->eraseActor(object->objectActor.get());
