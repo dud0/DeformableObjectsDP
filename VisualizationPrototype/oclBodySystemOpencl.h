@@ -70,6 +70,14 @@ class BodySystemOpenCL : public BodySystem
         cl_kernel intBod_kernel;
         cl_kernel intVer_kernel;
 
+        cl_kernel calcHash_kernel;
+        cl_kernel memSet_kernel;
+        cl_kernel findBound_kernel;
+        cl_kernel collide_kernel;
+
+        cl_kernel bitLoc_kernel;
+        cl_kernel bitGlo_kernel;
+
         // CPU data
         float* m_hOldPos;
         float* m_hPos;
@@ -77,6 +85,8 @@ class BodySystemOpenCL : public BodySystem
         float* m_hF;
         float* m_hEdge;
         float* m_hForces;
+        float* m_hHash;
+        float* m_hIndex;
 
         float* tmpF;
         float* tmpFF;
@@ -90,6 +100,13 @@ class BodySystemOpenCL : public BodySystem
         cl_mem m_dF[2];
         cl_mem m_dEdge[2];
         cl_mem m_dForces[2];
+        // kolizie
+        cl_mem m_dHash[2];
+        cl_mem m_dIndex[2];
+        cl_mem m_dCellStart[2];
+        cl_mem m_dCellEnd[2];
+        cl_mem m_dReorderedPos[2];
+        cl_mem m_dReorderedVel[2];
 
         bool m_bUsePBO;
 

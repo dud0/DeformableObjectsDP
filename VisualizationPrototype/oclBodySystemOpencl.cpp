@@ -17,6 +17,8 @@ BodySystemOpenCL::BodySystemOpenCL(int numBodies, int numEdges, cl_device_id dev
   m_hF(0),
   m_hForces(0),
   m_hEdge(0),
+  m_hHash(0),
+  m_hIndex(0),
   m_bUsePBO(usePBO),
   m_currentRead(0),
   m_currentWrite(1),
@@ -60,6 +62,42 @@ BodySystemOpenCL::BodySystemOpenCL(int numBodies, int numEdges, cl_device_id dev
     	exit(shrLogEx(LOGBOTH | CLOSELOG, -1, "integrateVerlet ", STDERROR));
     }
 
+    shrLog("\nCreateProgramAndkernel CALC HASH...");
+    if (CreateProgramAndKernel(ctx, &dev, "calcHash", &calcHash_kernel, m_bDouble))
+    {
+    	exit(shrLogEx(LOGBOTH | CLOSELOG, -1, "calcHash ", STDERROR));
+    }
+
+    shrLog("\nCreateProgramAndkernel MEM SET...");
+    if (CreateProgramAndKernel(ctx, &dev, "Memset", &memSet_kernel, m_bDouble))
+    {
+    	exit(shrLogEx(LOGBOTH | CLOSELOG, -1, "Memset ", STDERROR));
+    }
+
+    shrLog("\nCreateProgramAndkernel FIND BOUNDARIES...");
+    if (CreateProgramAndKernel(ctx, &dev, "findCellBoundsAndReorder", &findBound_kernel, m_bDouble))
+    {
+    	exit(shrLogEx(LOGBOTH | CLOSELOG, -1, "findCellBoundsAndReorder ", STDERROR));
+    }
+
+    shrLog("\nCreateProgramAndkernel COLLIDE...");
+    if (CreateProgramAndKernel(ctx, &dev, "collide", &collide_kernel, m_bDouble))
+    {
+    	exit(shrLogEx(LOGBOTH | CLOSELOG, -1, "collide ", STDERROR));
+    }
+
+    shrLog("\nCreateProgramAndkernel BITONIC LOCAL...");
+    if (CreateProgramAndKernel(ctx, &dev, "bitonicSortLocal1", &bitLoc_kernel, m_bDouble))
+    {
+    	exit(shrLogEx(LOGBOTH | CLOSELOG, -1, "bitLocal ", STDERROR));
+    }
+
+    shrLog("\nCreateProgramAndkernel BITONIC GLOBAL...");
+    if (CreateProgramAndKernel(ctx, &dev, "bitonicMergeGlobal", &bitGlo_kernel, m_bDouble))
+    {
+    	exit(shrLogEx(LOGBOTH | CLOSELOG, -1, "bitGlobal ", STDERROR));
+    }
+
     setSoftening(0.00125f);
     setDamping(0.995f);   
 }
@@ -84,6 +122,8 @@ void BodySystemOpenCL::_initialize(int numBodies, int numEdges)
     m_hF = new float[m_numBodies*4];
     m_hEdge = new float[m_numEdges*4];
     m_hForces = new float[m_numBodies*4];
+    m_hHash = new float[m_numBodies*4];
+    m_hIndex = new float[m_numBodies*4];
 
     memset(m_hOldPos, 0, m_numBodies*4*sizeof(float));
     memset(m_hPos, 0, m_numBodies*4*sizeof(float));
@@ -91,6 +131,8 @@ void BodySystemOpenCL::_initialize(int numBodies, int numEdges)
     memset(m_hF, 0, m_numBodies*4*sizeof(float));
     memset(m_hEdge, 0, m_numEdges*4*sizeof(float));
     memset(m_hForces, 0, m_numBodies*4*sizeof(float));
+    memset(m_hIndex, 0, m_numBodies*4*sizeof(float));
+    memset(m_hHash, 0, m_numBodies*4*sizeof(float));
 
     if (m_bUsePBO)
     {
@@ -134,6 +176,24 @@ void BodySystemOpenCL::_initialize(int numBodies, int numEdges)
     AllocateNBodyArrays(cxContext, m_dEdge, m_numEdges, m_bDouble);
     shrLog("\nAllocateNBodyArrays m_dEdge\n");
 
+    AllocateNBodyArrays(cxContext, m_dHash, m_numBodies, m_bDouble);
+    shrLog("\nAllocateArray m_dHash\n");
+
+    AllocateNBodyArrays(cxContext, m_dIndex, m_numBodies, m_bDouble);
+    shrLog("\nAllocateArray m_dIndex\n");
+
+    AllocateNBodyArrays(cxContext, m_dCellStart, 64*64*64, m_bDouble);
+    shrLog("\nAllocateArray m_dCellStart\n");
+
+    AllocateNBodyArrays(cxContext, m_dCellEnd, 64*64*64, m_bDouble);
+    shrLog("\nAllocateArray m_dCellEnd\n");
+
+    AllocateNBodyArrays(cxContext, m_dReorderedPos, m_numBodies, m_bDouble);
+    shrLog("\nAllocateArray m_dReorderedPos\n");
+
+    AllocateNBodyArrays(cxContext, m_dReorderedVel, m_numBodies, m_bDouble);
+    shrLog("\nAllocateArray m_dReorderedVel\n");
+
     m_bInitialized = true;
 }
 
@@ -147,16 +207,30 @@ void BodySystemOpenCL::_finalize()
     delete [] m_hForces;
     delete [] m_hF;
     delete [] m_hEdge;
+    delete [] m_hHash;
+    delete [] m_hIndex;
 
 	clReleaseKernel(extFor_kernel);
 	clReleaseKernel(sprFor_kernel);
 	clReleaseKernel(intBod_kernel);
+	clReleaseKernel(calcHash_kernel);
+	clReleaseKernel(memSet_kernel);
+	clReleaseKernel(findBound_kernel);
+	clReleaseKernel(bitLoc_kernel);
+	clReleaseKernel(bitGlo_kernel);
 
     DeleteNBodyArrays(m_dVel);
     DeleteNBodyArrays(m_dF);
     DeleteNBodyArrays(m_dEdge);
     DeleteNBodyArrays(m_dForces);
     DeleteNBodyArrays(m_dOldPos);
+    DeleteNBodyArrays(m_dHash);
+    DeleteNBodyArrays(m_dCellStart);
+    DeleteNBodyArrays(m_dCellEnd);
+    DeleteNBodyArrays(m_dIndex);
+    DeleteNBodyArrays(m_dReorderedPos);
+    DeleteNBodyArrays(m_dReorderedVel);
+
     if (m_bUsePBO)
     {
         UnregisterGLBufferObject(m_pboCL[0]);
@@ -229,6 +303,45 @@ void BodySystemOpenCL::update(float deltaTime)
     			m_numBodies, m_p, m_q,
     			1);
 
+    	calcHash(cqCommandQueue,
+    			calcHash_kernel,
+    	        m_dHash[0],
+    	        m_dIndex[0],
+    	        m_dPos[m_currentWrite],
+    	        m_numBodies
+    	    );
+
+    	bitonicSort(cqCommandQueue, bitGlo_kernel, bitLoc_kernel, m_dHash[0], m_dIndex[0], m_dHash[0], m_dIndex[0], 1, m_numBodies, 0);
+
+    	//Find start and end of each cell and
+    	//Reorder particle data for better cache coherency
+    	findCellBoundsAndReorder(cqCommandQueue,
+    			findBound_kernel,
+    			memSet_kernel,
+    			m_dCellStart[0],
+    			m_dCellEnd[0],
+    			m_dReorderedPos[0],
+    			m_dReorderedVel[0],
+    			m_dHash[0],
+    			m_dIndex[0],
+    			m_dPos[m_currentWrite],
+    			m_dVel[m_currentWrite],
+    			m_numBodies,
+    			64*64*64
+    	);
+
+    	collide(cqCommandQueue,
+    			collide_kernel,
+    	        m_dVel[m_currentWrite],
+    	        m_dReorderedPos[0],
+    	        m_dReorderedVel[0],
+    	        m_dIndex[0],
+    	        m_dCellStart[0],
+    	        m_dCellEnd[0],
+    	        m_numBodies,
+    	        64*64*64
+    	    );
+
     std::swap(m_currentRead, m_currentWrite);
 
 }
@@ -285,6 +398,16 @@ float* BodySystemOpenCL::getArray(BodyArray array)
         	ddata = m_dEdge[m_currentRead];
         	nB = m_numEdges;
         	shrLog("\nBODYSYSTEM_EDGE %d\n", nB);
+        	break;
+        case COL_HASH:
+        	hdata = m_hHash;
+        	ddata = m_dHash[0];
+        	nB = m_numBodies;
+        	break;
+        case COL_INDEX:
+        	hdata = m_hIndex;
+        	ddata = m_dIndex[0];
+        	nB = m_numBodies;
         	break;
     }
 
