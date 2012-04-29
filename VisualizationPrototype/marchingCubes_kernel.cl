@@ -272,7 +272,7 @@ void
 generateTriangles2(__global float4 *pos, __global float *norm, __global float4 *color, __global uint *compactedVoxelArray, __global uint *numVertsScanned, 
                    __global float2 *volumeData,
                    uint4 gridSize, uint4 gridSizeShift, uint4 gridSizeMask,
-                   float4 voxelSize, float isoValue, uint activeVoxels, uint maxVerts, 
+                   float4 voxelSize, float isoValue, uint activeVoxels, uint maxVerts, float4 color2, 
                    __read_only image2d_t numVertsTex, __read_only image2d_t triTex)
 {
     uint i = get_global_id(0);
@@ -347,7 +347,6 @@ generateTriangles2(__global float4 *pos, __global float *norm, __global float4 *
     uint numVerts = read_imageui(numVertsTex, tableSampler, (int2)(cubeindex,0)).x;
 
     float4 color1 = (float4)(1.0f,1.0f,1.0f,1.0f);
-    float4 color2 = (float4)(1.0f,0.0f,0.0f,1.0f);
 
     for(int i=0; i<numVerts; i+=3) {
         uint index = numVertsScanned[voxel] + i;

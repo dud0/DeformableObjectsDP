@@ -413,6 +413,7 @@ public:
 		Cleanup(0);
 	}
 
+	cl_float objectColor[4];
 
 	int *pArgc;
 	char **pArgv;
@@ -482,6 +483,13 @@ public:
 
 	void setIsoValue(float isoValue) {
 		this->isoValue=isoValue;
+	}
+
+	void setObjectColor(float r, float g, float b, float a) {
+		objectColor[0] = r;
+		objectColor[1] = g;
+		objectColor[2] = b;
+		objectColor[3] = a;
 	}
 
 	void setObjectDisplayMode(displayMode objectDisplayMode) {
@@ -580,7 +588,7 @@ public:
 
 			activeVoxels = lastElement + lastScanElement;
 		}
-		printf("activeVoxels = %d\n", activeVoxels);
+		//printf("activeVoxels = %d\n", activeVoxels);
 
 		if (activeVoxels==0) {
 			// return if there are no full voxels
@@ -625,6 +633,9 @@ public:
 			grid2.x/=2;
 			grid2.y*=2;
 		}
+
+		//printf("\nr: %f g: %f b:%f\n", objectColor[0], objectColor[1],objectColor[2]);
+
 		clManager->launch_generateTriangles2(grid2, NTHREADS, d_pos, d_normal, d_color,
 												d_compVoxelArray,
 
@@ -632,7 +643,7 @@ public:
 
 												gridSize, gridSizeShift, gridSizeMask,
 												voxelSize, isoValue, activeVoxels,
-								  maxVerts);
+								  maxVerts, objectColor);
 
 		if( clManager->g_glInterop ) {
 			// Transfer ownership of buffer back from CL to GL
@@ -669,6 +680,10 @@ public:
 
 	void setMCIsoValue(float isoValue) {
 		objectAnimator->setIsoValue(isoValue);
+	}
+
+	void setObjectColor(float r, float g, float b, float a) {
+		objectAnimator->setObjectColor(r, g, b,a);
 	}
 
 //protected:
@@ -870,6 +885,7 @@ public:
 		for (int i=0; i<objects->size(); i++) {
 			objects->at(i)->setPointRadius(configData->objectData[i].radius);
 			objects->at(i)->setMCIsoValue(configData->objectData[i].isoValue);
+			objects->at(i)->setObjectColor(configData->objectData[i].colorR, configData->objectData[i].colorG, configData->objectData[i].colorB,configData->objectData[i].colorA);
 			if (configData->objectData[i].change == true) {
 				uiSetForces(1, configData->objectData[i].force[0], i+1);
 				uiSetForces(2, configData->objectData[i].force[1], i+1);
@@ -888,16 +904,6 @@ public:
 				} else if(objectDisplayMode == EDGE) {
 					scene_manager->tree()->eraseActor(object->objectActor.get());
 					scene_manager->tree()->addActor(object->edgesActor.get());
-					/*vl::ref<vl::Effect> effect = new vl::Effect;
-					effect->shader()->enable(vl::EN_DEPTH_TEST);
-					effect->shader()->enable(vl::EN_LIGHTING);
-					effect->shader()->enable(vl::EN_BLEND);
-					effect->shader()->setRenderState( new vl::Light, 0 );
-					effect->shader()->gocMaterial()->setTransparency(0.2);
-					effect->shader()->gocLightModel()->setTwoSide(true);
-
-
-					object->objectActor->setEffect(effect.get());*/
 				} else if(objectDisplayMode == TENSION) {
 					scene_manager->tree()->eraseActor(object->edgesActor.get());
 					scene_manager->tree()->eraseActor(object->objectActor.get());
