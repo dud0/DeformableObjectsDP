@@ -31,6 +31,8 @@ QControlsWidget::QControlsWidget(QWidget *parent, ConfigurationData * configData
 
 	connect(ui.comboBox, SIGNAL(currentIndexChanged(int)),this, SLOT(showObjectData(int)));
 	connect(ui.applyPushButton, SIGNAL(clicked()), this, SLOT(saveObjectData()));
+
+	showObjectData(0);
 }
 
 QControlsWidget::~QControlsWidget()
@@ -55,6 +57,9 @@ void QControlsWidget::showObjectData(int index) {
 		ui.edgeModeRadioButton->setChecked(true);
 		break;
 	}
+	ui.rLineEdit->setText(QString::number(configData->objectData[index].colorR));
+	ui.gLineEdit->setText(QString::number(configData->objectData[index].colorG));
+	ui.bLineEdit->setText(QString::number(configData->objectData[index].colorB));
 }
 
 void QControlsWidget::saveObjectData() {
@@ -72,4 +77,7 @@ void QControlsWidget::saveObjectData() {
 	} else if (ui.edgeModeRadioButton->isChecked()) {
 		configData->objectData[index].mode=EDGE;
 	}
+	configData->objectData[index].colorR=ui.rLineEdit->text().toFloat();
+	configData->objectData[index].colorG=ui.gLineEdit->text().toFloat();
+	configData->objectData[index].colorB=ui.bLineEdit->text().toFloat();
 }
