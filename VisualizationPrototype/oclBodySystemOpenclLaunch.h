@@ -37,6 +37,8 @@
 int  CreateProgramAndKernel(cl_context ctx, cl_device_id* cdDevices, const char* kernel_name, cl_kernel* kernel, bool bDouble);
 void AllocateNBodyArrays(cl_context ctx, cl_mem* vel, int numBodies, int dFlag);
 void DeleteNBodyArrays(cl_mem* vel);
+void allocateArray(cl_context cxGPUContext, cl_mem*memObj, size_t size);
+void freeArray(cl_mem memObj);
 
 
 void IntegrateNbodySystem(cl_command_queue cqCommandQueue,
@@ -92,11 +94,61 @@ void integrateSystemVerlet(cl_command_queue cqCommandQueue,
         		int numBodies, int p, int q,
         		bool bDouble);
 
+void calcHash(cl_command_queue cqCommandQueue,
+    		cl_kernel k,
+        cl_mem d_Hash,
+        cl_mem d_Index,
+        cl_mem d_Pos,
+        int numParticles
+    );
+
+void findCellBoundsAndReorder(cl_command_queue cqCommandQueue,
+    		cl_kernel k,
+    		cl_kernel memSet,
+        cl_mem d_CellStart,
+        cl_mem d_CellEnd,
+        cl_mem d_ReorderedPos,
+        cl_mem d_ReorderedVel,
+        cl_mem d_Hash,
+        cl_mem d_Index,
+        cl_mem d_Pos,
+        cl_mem d_Vel,
+        uint numParticles,
+        uint numCells
+    );
+void collide(cl_command_queue cqCommandQueue,
+    		cl_kernel k,
+        cl_mem d_Vel,
+        cl_mem d_ReorderedPos,
+        cl_mem d_ReorderedVel,
+        cl_mem d_Index,
+        cl_mem d_CellStart,
+        cl_mem d_CellEnd,
+        uint   numParticles,
+        uint   numCells
+    );
+
+void bitonicSort(
+        cl_command_queue cqCommandQueue,
+        cl_kernel k_g,
+        cl_kernel k_l,
+        cl_mem d_DstKey,
+        cl_mem d_DstVal,
+        cl_mem d_SrcKey,
+        cl_mem d_SrcVal,
+        unsigned int batch,
+        unsigned int arrayLength,
+        unsigned int dir
+    );
+
 void CopyArrayFromDevice(int __size, cl_command_queue cmdq, float *host, cl_mem device, cl_mem pboCL, int numBodies, bool bDouble);
 void CopyArrayToDevice(int __size, cl_command_queue cmdq, cl_mem device, const float *host, int numBodies, bool bDouble);
 cl_mem RegisterGLBufferObject(cl_context ctx, unsigned int pboGL);
 void UnregisterGLBufferObject(cl_mem pboCL);
 void ThreadSync(cl_command_queue cmdq);
+
+void _copyArrayFromDevice(cl_command_queue cqCommandQueue, void *hostPtr, cl_mem memObj, unsigned int vbo, size_t size);
+void _copyArrayToDevice(cl_command_queue cqCommandQueue, cl_mem memObj, const void *hostPtr, size_t offset, size_t size);
 
 #ifdef __cplusplus
     }

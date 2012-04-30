@@ -1039,8 +1039,13 @@ public:
 
 				vel[p] = 0;
 				force[p] = 0;
+				/*if(numObjects == 1) {
+					if (y > 150)
+					force[p] = 15;
+				}*/
 				forces[p] = 0;
 				pos[p++] = y;
+
 
 				if (s.compare("$EndNodes") == 0)
 					break;
@@ -1170,6 +1175,9 @@ public:
 		    //initialize edges
 		    //hEdge = new float[nEdges*3];
 
+		    float pole[3];
+		    float vectorLength;
+
 		    float tmpNUM = pow(numBodies, 1./3.);
 		    float tmpINC = (SCALE)/tmpNUM;
 		    int n = 0;
@@ -1190,7 +1198,14 @@ public:
 
 		    			hEdge[p++] = i;
 		    			hEdge[p++] = j;
-		    			hEdge[p++] = tmpINC;
+
+		    			pole[0] = hPos[i*4] - hPos[j*4];
+		    			pole[1] = hPos[i*4+1] - hPos[j*4+1];
+		    			pole[2] = hPos[i*4+2] - hPos[j*4+2];
+
+		    			vectorLength = sqrt(pole[0]*pole[0] + pole[1]*pole[1] + pole[2]*pole[2]);
+
+		    			hEdge[p++] = vectorLength;
 		    			hEdge[p++] = 1.0f;
 
 		    			//shrLog("E: %d => P1: %d; P2: %d; l0: %f; Ks: %d; Kd: %d <-->", p-5, i, j, tmpInc, (int)koefKs, (int)koefKd);
@@ -1202,7 +1217,14 @@ public:
 
 		    			hEdge[p++] = i;
 		    			hEdge[p++] = j;
-		    			hEdge[p++] = tmpINC;
+
+		    			pole[0] = hPos[i*4] - hPos[j*4];
+		    			pole[1] = hPos[i*4+1] - hPos[j*4+1];
+		    			pole[2] = hPos[i*4+2] - hPos[j*4+2];
+
+		    			vectorLength = sqrt(pole[0]*pole[0] + pole[1]*pole[1] + pole[2]*pole[2]);
+
+		    			hEdge[p++] = vectorLength;
 		    			hEdge[p++] = 1.0f;
 
 		    			//shrLog("E: %d => P1: %d; P2: %d; l0: %f; Ks: %d; Kd: %d <-->", p-5, i, j, tmpInc, (int)koefKs, (int)koefKd);
@@ -1214,7 +1236,14 @@ public:
 
 		    			hEdge[p++] = i;
 		    			hEdge[p++] = j;
-		    			hEdge[p++] = tmpINC;
+
+		    			pole[0] = hPos[i*4] - hPos[j*4];
+		    			pole[1] = hPos[i*4+1] - hPos[j*4+1];
+		    			pole[2] = hPos[i*4+2] - hPos[j*4+2];
+
+		    			vectorLength = sqrt(pole[0]*pole[0] + pole[1]*pole[1] + pole[2]*pole[2]);
+
+		    			hEdge[p++] = vectorLength;
 		    			hEdge[p++] = 1.0f;
 
 		    			//shrLog("E: %d => P1: %d; P2: %d; l0: %f; Ks: %d; Kd: %d", p-5, i, j, tmpInc, (int)koefKs, (int)koefKd);
@@ -1303,7 +1332,14 @@ public:
 	k++;
 		    			hEdge[p++] = i;
 		    			hEdge[p++] = j;
-		    			hEdge[p++] = (tmpINC*2);
+
+		    			pole[0] = hPos[i*4] - hPos[j*4];
+		    			pole[1] = hPos[i*4+1] - hPos[j*4+1];
+		    			pole[2] = hPos[i*4+2] - hPos[j*4+2];
+
+		    			vectorLength = sqrt(pole[0]*pole[0] + pole[1]*pole[1] + pole[2]*pole[2]);
+
+		    			hEdge[p++] = vectorLength;
 		    			hEdge[p++] = 1.0f;
 
 		    			//shrLog("E: %d => P1: %d; P2: %d; l0: %f; Ks: %d; Kd: %d <-->", p-5, i, j, tmpInc, (int)koefKs, (int)koefKd);
@@ -1315,7 +1351,14 @@ public:
 	k++;
 		    			hEdge[p++] = i;
 		    			hEdge[p++] = j;
-		    			hEdge[p++] = (tmpINC*2);
+
+		    			pole[0] = hPos[i*4] - hPos[j*4];
+		    			pole[1] = hPos[i*4+1] - hPos[j*4+1];
+		    			pole[2] = hPos[i*4+2] - hPos[j*4+2];
+
+		    			vectorLength = sqrt(pole[0]*pole[0] + pole[1]*pole[1] + pole[2]*pole[2]);
+
+		    			hEdge[p++] = vectorLength;
 		    			hEdge[p++] = 1.0f;
 
 		    			//shrLog("E: %d => P1: %d; P2: %d; l0: %f; Ks: %d; Kd: %d <-->", p-5, i, j, tmpInc, (int)koefKs, (int)koefKd);
@@ -1327,7 +1370,14 @@ public:
 	k++;
 		    			hEdge[p++] = i;
 		    			hEdge[p++] = j;
-		    			hEdge[p++] = (tmpINC*2);
+
+		    			pole[0] = hPos[i*4] - hPos[j*4];
+		    			pole[1] = hPos[i*4+1] - hPos[j*4+1];
+		    			pole[2] = hPos[i*4+2] - hPos[j*4+2];
+
+		    			vectorLength = sqrt(pole[0]*pole[0] + pole[1]*pole[1] + pole[2]*pole[2]);
+
+		    			hEdge[p++] = vectorLength;
 		    			hEdge[p++] = 1.0f;
 
 		    			//shrLog("E: %d => P1: %d; P2: %d; l0: %f; Ks: %d; Kd: %d", p-5, i, j, tmpInc, (int)koefKs, (int)koefKd);
@@ -1342,7 +1392,14 @@ public:
 
 		    			hEdge[p++] = i;
 		    			hEdge[p++] = j;
-		    			hEdge[p++] = tmpINC*sqrt(3); // stenova uhlopriecka v kocke
+
+		    			pole[0] = hPos[i*4] - hPos[j*4];
+		    			pole[1] = hPos[i*4+1] - hPos[j*4+1];
+		    			pole[2] = hPos[i*4+2] - hPos[j*4+2];
+
+		    			vectorLength = sqrt(pole[0]*pole[0] + pole[1]*pole[1] + pole[2]*pole[2]);
+
+		    			hEdge[p++] = vectorLength;
 		    			hEdge[p++] = 1.0f;
 
 		    			//shrLog("E: %d => P1: %d; P2: %d; l0: %f; Ks: %d; Kd: %d <-->", p-5, i, j, tmpInc, (int)koefKs, (int)koefKd);
@@ -1354,7 +1411,14 @@ public:
 
 		    			hEdge[p++] = i;
 		    			hEdge[p++] = j;
-		    			hEdge[p++] = tmpINC*sqrt(3); // stenova uhlopriecka v kocke
+
+		    			pole[0] = hPos[i*4] - hPos[j*4];
+		    			pole[1] = hPos[i*4+1] - hPos[j*4+1];
+		    			pole[2] = hPos[i*4+2] - hPos[j*4+2];
+
+		    			vectorLength = sqrt(pole[0]*pole[0] + pole[1]*pole[1] + pole[2]*pole[2]);
+
+		    			hEdge[p++] = vectorLength;
 		    			hEdge[p++] = 1.0f;
 
 		    			//shrLog("E: %d => P1: %d; P2: %d; l0: %f; Ks: %d; Kd: %d <-->", p-5, i, j, tmpInc, (int)koefKs, (int)koefKd);
@@ -1366,7 +1430,14 @@ public:
 
 		    			hEdge[p++] = i;
 		    			hEdge[p++] = j;
-		    			hEdge[p++] = tmpINC*sqrt(3); // stenova uhlopriecka v kocke
+
+		    			pole[0] = hPos[i*4] - hPos[j*4];
+		    			pole[1] = hPos[i*4+1] - hPos[j*4+1];
+		    			pole[2] = hPos[i*4+2] - hPos[j*4+2];
+
+		    			vectorLength = sqrt(pole[0]*pole[0] + pole[1]*pole[1] + pole[2]*pole[2]);
+
+		    			hEdge[p++] = vectorLength;
 		    			hEdge[p++] = 1.0f;
 
 		    			//shrLog("E: %d => P1: %d; P2: %d; l0: %f; Ks: %d; Kd: %d <-->", p-5, i, j, tmpInc, (int)koefKs, (int)koefKd);
@@ -1378,7 +1449,14 @@ public:
 
 		    			hEdge[p++] = i;
 		    			hEdge[p++] = j;
-		    			hEdge[p++] = tmpINC*sqrt(3); // stenova uhlopriecka v kocke
+
+		    			pole[0] = hPos[i*4] - hPos[j*4];
+		    			pole[1] = hPos[i*4+1] - hPos[j*4+1];
+		    			pole[2] = hPos[i*4+2] - hPos[j*4+2];
+
+		    			vectorLength = sqrt(pole[0]*pole[0] + pole[1]*pole[1] + pole[2]*pole[2]);
+
+		    			hEdge[p++] = vectorLength;
 		    			hEdge[p++] = 1.0f;
 
 		    			//shrLog("E: %d => P1: %d; P2: %d; l0: %f; Ks: %d; Kd: %d <-->", p-5, i, j, tmpInc, (int)koefKs, (int)koefKd);
@@ -1706,7 +1784,7 @@ protected:
 		m_clusterScale=1.54f;
 		m_velocityScale=1.0f;
 		m_softening=0.1f;
-		m_damping=0.95f;
+		m_damping=1.0f;
 		m_pointSize=5.0f;
 		m_x=0;
 		m_y=-2;
