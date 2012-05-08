@@ -166,7 +166,7 @@ REAL3 getFc(int numBodies, REAL4 Fc) {
     }
     else {
     
-    	REAL Ks = 0;
+    	REAL Ks = 40;
    
    		REAL restL = oldEdges[index].z;
    
@@ -183,9 +183,9 @@ REAL3 getFc(int numBodies, REAL4 Fc) {
   		vectorLength = sqrt(tmpVec.x*tmpVec.x + tmpVec.y*tmpVec.y + tmpVec.z*tmpVec.z);
     	
     	// trhanie
-    	/*if (vectorLength >= restL*3) {
+    	if (vectorLength >= restL*3) {
     		oldEdges[index].w = 0;
-    	}*/
+    	}
     	
     	// plasticita
     	/*if (vectorLength >= restL*2) {
@@ -489,6 +489,11 @@ float4 collideSpheres(
     float4     relPos = (float4)(posB.x - posA.x, posB.y - posA.y, posB.z - posA.z, 0);
     float        dist = sqrt(relPos.x * relPos.x + relPos.y * relPos.y + relPos.z * relPos.z);
     float collideDist = radiusA + radiusB;
+
+	// v pripade ze sa jedna o to iste teleso
+	if (posA.w == posB.w) {
+		return 0;
+	}
 
     float4 force = (float4)(0, 0, 0, 0);
     if(dist < collideDist){

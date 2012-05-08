@@ -886,12 +886,12 @@ public:
 			objects->at(i)->setPointRadius(configData->objectData[i].radius);
 			objects->at(i)->setMCIsoValue(configData->objectData[i].isoValue);
 			objects->at(i)->setObjectColor(configData->objectData[i].colorR, configData->objectData[i].colorG, configData->objectData[i].colorB,configData->objectData[i].colorA);
-			if (configData->objectData[i].change == true) {
+			/*if (configData->objectData[i].change == true) {
 				uiSetForces(1, configData->objectData[i].force[0], i+1);
 				uiSetForces(2, configData->objectData[i].force[1], i+1);
 				uiSetForces(3, configData->objectData[i].force[2], i+1);
 				configData->objectData[i].change = false;
-			}
+			}*/
 			displayMode objectDisplayMode = configData->objectData[i].mode;
 			VisualizationObject *object = objects->at(i);
 			if (object->objectAnimator->objectDisplayMode != objectDisplayMode) {
@@ -1039,10 +1039,10 @@ public:
 
 				vel[p] = 0;
 				force[p] = 0;
-				/*if(numObjects == 1) {
-					if (y > 150)
-					force[p] = 15;
-				}*/
+				if(numObjects == 2) {
+					if (y > 100)
+						force[p] = 20;
+				}
 				forces[p] = 0;
 				pos[p++] = y;
 
@@ -1516,7 +1516,7 @@ public:
 		 //   randomizeBodies(&nEdges, config, hPos, hVel, hF, hForces, hColor, m_clusterScale, m_velocityScale, numBodies);
 
 		    int tmp;
-		    tmp = ImportFromFile("import.txt", hPos, hVel, hF, hForces);
+		    tmp = ImportFromFile("import2.txt", hPos, hVel, hF, hForces);
 
 		    float tmpNUM = pow(numBodies, 1./3.);
 		    float tmpINC = (SCALE)/tmpNUM;
@@ -1784,14 +1784,14 @@ protected:
 		m_clusterScale=1.54f;
 		m_velocityScale=1.0f;
 		m_softening=0.1f;
-		m_damping=1.0f;
+		m_damping=0.95f;
 		m_pointSize=5.0f;
 		m_x=0;
 		m_y=-2;
 		m_z=-100;
 
 		string s;
-		ifstream infile("import.txt");
+		ifstream infile("import2.txt");
 
 		if (!infile) {
 			cout << "There was a problem opening file "
@@ -1799,7 +1799,7 @@ protected:
 					<< " for reading."
 					<< endl;
 		}
-		cout << "Opened " << "import.txt" << " for import." << endl;
+		cout << "Opened " << "import2.txt" << " for import." << endl;
 
 		numBodies = 0;
 		int newBodiesCount;

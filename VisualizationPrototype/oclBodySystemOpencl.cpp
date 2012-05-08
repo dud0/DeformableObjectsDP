@@ -99,7 +99,7 @@ BodySystemOpenCL::BodySystemOpenCL(int numBodies, int numEdges, cl_device_id dev
     }
 
     setSoftening(0.00125f);
-    setDamping(0.995f);   
+  //  setDamping(0.995f);
 }
 
 BodySystemOpenCL::~BodySystemOpenCL()
