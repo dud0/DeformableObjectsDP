@@ -69,8 +69,10 @@ void generateLines(__global float4 *edgePos, __global float4 *edgeColor, __globa
 			edgeColor[outputIndex] = mix(color2, color1, tension);
 			edgeColor[outputIndex+1] = mix(color2, color1, tension);
 		} else {
-			edgeColor[outputIndex] = (float4)(0.0f, 0.0f, 0.0f, 0.0f);
-			edgeColor[outputIndex+1] = (float4)(0.0f, 0.0f, 0.0f, 0.0f);
+			edgePos[outputIndex] = (float4)(-1.0f, -1.0f, -1.0f, 1.0f);
+			edgePos[outputIndex+1] = (float4)(-1.0f, -1.0f, -1.0f, 1.0f);
+			edgeColor[outputIndex] = (float4)(0.0f, 0.0f, 0.0f, 1.0f);
+			edgeColor[outputIndex+1] = (float4)(0.0f, 0.0f, 0.0f, 1.0f);
 		}	
 	}
 }
