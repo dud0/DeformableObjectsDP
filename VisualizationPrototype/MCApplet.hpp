@@ -886,12 +886,13 @@ public:
 			objects->at(i)->setPointRadius(configData->objectData[i].radius);
 			objects->at(i)->setMCIsoValue(configData->objectData[i].isoValue);
 			objects->at(i)->setObjectColor(configData->objectData[i].colorR, configData->objectData[i].colorG, configData->objectData[i].colorB,configData->objectData[i].colorA);
-			/*if (configData->objectData[i].change == true) {
-				uiSetForces(1, configData->objectData[i].force[0], i+1);
-				uiSetForces(2, configData->objectData[i].force[1], i+1);
-				uiSetForces(3, configData->objectData[i].force[2], i+1);
+			if (configData->objectData[i].change == true) {
+				//uiSetForces(1, configData->objectData[i].force[0], i+1);
+				//uiSetForces(2, configData->objectData[i].force[1], i+1);
+				//uiSetForces(3, configData->objectData[i].force[2], i+1);
+				start = true;
 				configData->objectData[i].change = false;
-			}*/
+			}
 			displayMode objectDisplayMode = configData->objectData[i].mode;
 			VisualizationObject *object = objects->at(i);
 			if (object->objectAnimator->objectDisplayMode != objectDisplayMode) {
@@ -911,11 +912,11 @@ public:
 					scene_manager->tree()->addActor(object->objectActor.get());
 				}
 			}
-
 		}
 		//bordersActor->actorEventCallbacks()->push_back( new vl::DepthSortCallback );
 		//run kernels to update particle positions
-		//nbody->update(m_timestep);
+		if(start)
+			nbody->update(m_timestep);
 		printf("%f\n",fps());
 	}
 
@@ -1752,6 +1753,8 @@ protected:
 	float* hEdge; // array of all edges
 	int nEdges;
 
+	bool start;
+
 	float m_timestep;
 	float m_clusterScale;
 	float m_velocityScale;
@@ -1767,6 +1770,9 @@ protected:
 	//--
 
 	void simulationInit() {
+
+		start = false;
+
 		int p = 256;
 		int q = 1;
 
