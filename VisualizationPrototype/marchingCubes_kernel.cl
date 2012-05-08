@@ -31,9 +31,7 @@ void generateLines(__global float4 *edgePos, __global float4 *edgeColor, __globa
 	float3 tmpVec;
 	
 	if (index < edgeCount) {
-		//if (edges[inputIndex].w == 1) {
-			//edgePos[outputIndex] = points[(int)edges[inputIndex].x];
-			//edgePos[outputIndex+1] = points[(int)edges[inputIndex].y];
+		if (edges[inputIndex].w == 1) {
 			point1 = edges[inputIndex].x;
 			point2 = edges[inputIndex].y;
 
@@ -69,8 +67,11 @@ void generateLines(__global float4 *edgePos, __global float4 *edgeColor, __globa
 			float tension = clamp((edgeLength)/(edges[inputIndex].z*3), 0.0f, 1.0f);
 
 			edgeColor[outputIndex] = mix(color2, color1, tension);
-			edgeColor[outputIndex+1] = mix(color2, color1, tension);;
-		//}		
+			edgeColor[outputIndex+1] = mix(color2, color1, tension);
+		} else {
+			edgeColor[outputIndex] = (float4)(0.0f, 0.0f, 0.0f, 0.0f);
+			edgeColor[outputIndex+1] = (float4)(0.0f, 0.0f, 0.0f, 0.0f);
+		}	
 	}
 }
 

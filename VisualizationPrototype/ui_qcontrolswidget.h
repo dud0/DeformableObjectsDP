@@ -1,8 +1,8 @@
 /********************************************************************************
 ** Form generated from reading UI file 'qcontrolswidget.ui'
 **
-** Created: Wed Apr 25 16:13:09 2012
-**      by: Qt User Interface Compiler version 4.7.4
+** Created: Mon Apr 30 15:16:51 2012
+**      by: Qt User Interface Compiler version 4.8.1
 **
 ** WARNING! All changes made in this file will be lost when recompiling UI file!
 ********************************************************************************/
@@ -45,12 +45,19 @@ public:
     QRadioButton *normalModeRadioButton;
     QRadioButton *tensionModeRadioButton;
     QRadioButton *edgeModeRadioButton;
+    QGroupBox *colorGroupBox;
+    QLineEdit *rLineEdit;
+    QLineEdit *gLineEdit;
+    QLineEdit *bLineEdit;
+    QLabel *rLabel;
+    QLabel *gLabel;
+    QLabel *bLabel;
 
     void setupUi(QWidget *QControlsWidgetClass)
     {
         if (QControlsWidgetClass->objectName().isEmpty())
             QControlsWidgetClass->setObjectName(QString::fromUtf8("QControlsWidgetClass"));
-        QControlsWidgetClass->resize(500, 378);
+        QControlsWidgetClass->resize(500, 446);
         comboBox = new QComboBox(QControlsWidgetClass);
         comboBox->setObjectName(QString::fromUtf8("comboBox"));
         comboBox->setGeometry(QRect(100, 30, 85, 27));
@@ -77,7 +84,7 @@ public:
         objectLabel->setGeometry(QRect(30, 30, 67, 17));
         applyPushButton = new QPushButton(QControlsWidgetClass);
         applyPushButton->setObjectName(QString::fromUtf8("applyPushButton"));
-        applyPushButton->setGeometry(QRect(210, 320, 97, 27));
+        applyPushButton->setGeometry(QRect(200, 390, 97, 27));
         yLineEdit = new QLineEdit(QControlsWidgetClass);
         yLineEdit->setObjectName(QString::fromUtf8("yLineEdit"));
         yLineEdit->setGeometry(QRect(130, 210, 113, 27));
@@ -102,6 +109,27 @@ public:
         edgeModeRadioButton = new QRadioButton(modeSelectGroup);
         edgeModeRadioButton->setObjectName(QString::fromUtf8("edgeModeRadioButton"));
         edgeModeRadioButton->setGeometry(QRect(10, 90, 114, 22));
+        colorGroupBox = new QGroupBox(QControlsWidgetClass);
+        colorGroupBox->setObjectName(QString::fromUtf8("colorGroupBox"));
+        colorGroupBox->setGeometry(QRect(300, 200, 131, 131));
+        rLineEdit = new QLineEdit(colorGroupBox);
+        rLineEdit->setObjectName(QString::fromUtf8("rLineEdit"));
+        rLineEdit->setGeometry(QRect(52, 20, 71, 27));
+        gLineEdit = new QLineEdit(colorGroupBox);
+        gLineEdit->setObjectName(QString::fromUtf8("gLineEdit"));
+        gLineEdit->setGeometry(QRect(52, 60, 71, 27));
+        bLineEdit = new QLineEdit(colorGroupBox);
+        bLineEdit->setObjectName(QString::fromUtf8("bLineEdit"));
+        bLineEdit->setGeometry(QRect(50, 100, 71, 27));
+        rLabel = new QLabel(colorGroupBox);
+        rLabel->setObjectName(QString::fromUtf8("rLabel"));
+        rLabel->setGeometry(QRect(10, 30, 67, 17));
+        gLabel = new QLabel(colorGroupBox);
+        gLabel->setObjectName(QString::fromUtf8("gLabel"));
+        gLabel->setGeometry(QRect(10, 60, 67, 17));
+        bLabel = new QLabel(colorGroupBox);
+        bLabel->setObjectName(QString::fromUtf8("bLabel"));
+        bLabel->setGeometry(QRect(10, 100, 67, 17));
 
         retranslateUi(QControlsWidgetClass);
 
@@ -122,6 +150,10 @@ public:
         normalModeRadioButton->setText(QApplication::translate("QControlsWidgetClass", "Normal", 0, QApplication::UnicodeUTF8));
         tensionModeRadioButton->setText(QApplication::translate("QControlsWidgetClass", "Tension", 0, QApplication::UnicodeUTF8));
         edgeModeRadioButton->setText(QApplication::translate("QControlsWidgetClass", "Edge", 0, QApplication::UnicodeUTF8));
+        colorGroupBox->setTitle(QApplication::translate("QControlsWidgetClass", "Color", 0, QApplication::UnicodeUTF8));
+        rLabel->setText(QApplication::translate("QControlsWidgetClass", "R", 0, QApplication::UnicodeUTF8));
+        gLabel->setText(QApplication::translate("QControlsWidgetClass", "G", 0, QApplication::UnicodeUTF8));
+        bLabel->setText(QApplication::translate("QControlsWidgetClass", "B", 0, QApplication::UnicodeUTF8));
     } // retranslateUi
 
 };
