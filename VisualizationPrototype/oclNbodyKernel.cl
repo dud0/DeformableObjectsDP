@@ -566,8 +566,8 @@ __kernel void collide(
                     force += collideSpheres(
                         pos, pos2,
                         vel, vel2,
-                        0.01, 0.01, 
-                        0.4, 0.025, 0.12, 0.012
+                        0.05, 0.05, 
+                        0.9, 0.8, 0.12, 0.012
                     );
                 }
             }

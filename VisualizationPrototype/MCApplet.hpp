@@ -887,9 +887,9 @@ public:
 			objects->at(i)->setMCIsoValue(configData->objectData[i].isoValue);
 			objects->at(i)->setObjectColor(configData->objectData[i].colorR, configData->objectData[i].colorG, configData->objectData[i].colorB,configData->objectData[i].colorA);
 			if (configData->objectData[i].change == true) {
-				//uiSetForces(1, configData->objectData[i].force[0], i+1);
-				//uiSetForces(2, configData->objectData[i].force[1], i+1);
-				//uiSetForces(3, configData->objectData[i].force[2], i+1);
+				uiSetForces(1, configData->objectData[i].force[0], i+1);
+				uiSetForces(2, configData->objectData[i].force[1], i+1);
+				uiSetForces(3, configData->objectData[i].force[2], i+1);
 				start = true;
 				configData->objectData[i].change = false;
 			}
@@ -976,6 +976,15 @@ public:
 			pos[i*4+2] = (tmp[t*4+2]/dielikFirst)*dielikSecond + offset;
 			pos[i*4+3] = tmp[t*4+3];
 
+			/*
+			 * PRE POTREBY NARAZU DO STENY
+			 */
+			if (numObjects == 3) {
+				pos[i*4] += 8.0;
+				pos[i*4+1] -= 5.0;
+				pos[i*4+2] -= 5.0;
+			}
+
 			//shrLog("\nNove--> x: %f, y: %f, z: %f / EdgeLength: %f\n", pos[i*4], pos[i*4+1], pos[i*4+2], edgeLength);
 		}
 	}
@@ -1041,10 +1050,13 @@ public:
 
 				vel[p] = 0;
 				force[p] = 0;
-				if(numObjects == 2) {
+				/*
+				 * PRE POTREBY ROZTRHNUTIA KACKY
+				 */
+				/*if(numObjects == 2) {
 					if (y > 100)
 						force[p] = 20;
-				}
+				}*/
 				forces[p] = 0;
 				pos[p++] = y;
 
