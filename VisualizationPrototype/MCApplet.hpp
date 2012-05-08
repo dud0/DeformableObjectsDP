@@ -915,7 +915,7 @@ public:
 		}
 		//bordersActor->actorEventCallbacks()->push_back( new vl::DepthSortCallback );
 		//run kernels to update particle positions
-		nbody->update(m_timestep);
+		//nbody->update(m_timestep);
 		printf("%f\n",fps());
 	}
 
