@@ -20,6 +20,8 @@ private:
 public slots:
 	void showObjectData(int);
 	void saveObjectData();
+	void pause();
+	void restart();
 };
 
 #endif // QCONTROLSWIDGET_H

@@ -15,6 +15,9 @@ public:
 class ConfigurationData {
 public:
 	ConfigurationData() {
+		doPause = false;
+		doRestart = false;
+
 		for (int i=0; i<20; i++) {
 			objectData[i].change = false;
 			objectData[i].radius=1.0f;
@@ -42,6 +45,7 @@ public:
 
 	}
 
+	bool doPause, doRestart;
 	ObjectData objectData[20];
 };
 

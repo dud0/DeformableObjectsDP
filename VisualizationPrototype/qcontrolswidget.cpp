@@ -31,6 +31,8 @@ QControlsWidget::QControlsWidget(QWidget *parent, ConfigurationData * configData
 
 	connect(ui.comboBox, SIGNAL(currentIndexChanged(int)),this, SLOT(showObjectData(int)));
 	connect(ui.applyPushButton, SIGNAL(clicked()), this, SLOT(saveObjectData()));
+	connect(ui.btnPause, SIGNAL(clicked()), this, SLOT(pause()));
+	connect(ui.btnRestart, SIGNAL(clicked()), this, SLOT(restart()));
 
 	showObjectData(0);
 }
@@ -80,4 +82,19 @@ void QControlsWidget::saveObjectData() {
 	configData->objectData[index].colorR=ui.rLineEdit->text().toFloat();
 	configData->objectData[index].colorG=ui.gLineEdit->text().toFloat();
 	configData->objectData[index].colorB=ui.bLineEdit->text().toFloat();
+}
+
+void QControlsWidget::restart() {
+	configData->doRestart = true;
+}
+
+void QControlsWidget::pause() {
+	if(configData->doPause == false) {
+		configData->doPause = true;
+		ui.btnPause->setText("Start");
+	}
+	else {
+		configData->doPause = false;
+		ui.btnPause->setText("Pause");
+	}
 }

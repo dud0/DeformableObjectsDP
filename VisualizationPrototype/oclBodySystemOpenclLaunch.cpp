@@ -438,10 +438,12 @@ extern "C"
         cl_mem d_CellEnd,
         cl_mem d_ReorderedPos,
         cl_mem d_ReorderedVel,
+        cl_mem d_ReorderedForce,
         cl_mem d_Hash,
         cl_mem d_Index,
         cl_mem d_Pos,
         cl_mem d_Vel,
+        cl_mem d_Forces,
         uint numParticles,
         uint numCells
     ){
@@ -455,12 +457,14 @@ extern "C"
         ciErrNum |= clSetKernelArg(k, 1, sizeof(cl_mem), (void *)&d_CellEnd);
         ciErrNum |= clSetKernelArg(k, 2, sizeof(cl_mem), (void *)&d_ReorderedPos);
         ciErrNum |= clSetKernelArg(k, 3, sizeof(cl_mem), (void *)&d_ReorderedVel);
-        ciErrNum |= clSetKernelArg(k, 4, sizeof(cl_mem), (void *)&d_Hash);
-        ciErrNum |= clSetKernelArg(k, 5, sizeof(cl_mem), (void *)&d_Index);
-        ciErrNum |= clSetKernelArg(k, 6, sizeof(cl_mem), (void *)&d_Pos);
-        ciErrNum |= clSetKernelArg(k, 7, sizeof(cl_mem), (void *)&d_Vel);
-        ciErrNum |= clSetKernelArg(k, 8, (wgSize + 1) * sizeof(cl_uint), NULL);
-        ciErrNum |= clSetKernelArg(k, 9, sizeof(cl_uint), (void *)&numParticles);
+        ciErrNum |= clSetKernelArg(k, 4, sizeof(cl_mem), (void *)&d_ReorderedForce);
+        ciErrNum |= clSetKernelArg(k, 5, sizeof(cl_mem), (void *)&d_Hash);
+        ciErrNum |= clSetKernelArg(k, 6, sizeof(cl_mem), (void *)&d_Index);
+        ciErrNum |= clSetKernelArg(k, 7, sizeof(cl_mem), (void *)&d_Pos);
+        ciErrNum |= clSetKernelArg(k, 8, sizeof(cl_mem), (void *)&d_Vel);
+        ciErrNum |= clSetKernelArg(k, 9, sizeof(cl_mem), (void *)&d_Forces);
+        ciErrNum |= clSetKernelArg(k, 10, (wgSize + 1) * sizeof(cl_uint), NULL);
+        ciErrNum |= clSetKernelArg(k, 11, sizeof(cl_uint), (void *)&numParticles);
         oclCheckError(ciErrNum, CL_SUCCESS);
 
         ciErrNum = clEnqueueNDRangeKernel(cqCommandQueue, k, 1, NULL, &globalWorkSize, &wgSize, 0, NULL, NULL);
@@ -470,8 +474,10 @@ extern "C"
     void collide(cl_command_queue cqCommandQueue,
     		cl_kernel k,
         cl_mem d_Vel,
+        cl_mem d_Forces,
         cl_mem d_ReorderedPos,
         cl_mem d_ReorderedVel,
+        cl_mem d_ReorderedForce,
         cl_mem d_Index,
         cl_mem d_CellStart,
         cl_mem d_CellEnd,
@@ -483,12 +489,14 @@ extern "C"
         size_t globalWorkSize = uSnap(numParticles, wgSize);
 
         ciErrNum  = clSetKernelArg(k, 0, sizeof(cl_mem), (void *)&d_Vel);
-        ciErrNum |= clSetKernelArg(k, 1, sizeof(cl_mem), (void *)&d_ReorderedPos);
-        ciErrNum |= clSetKernelArg(k, 2, sizeof(cl_mem), (void *)&d_ReorderedVel);
-        ciErrNum |= clSetKernelArg(k, 3, sizeof(cl_mem), (void *)&d_Index);
-        ciErrNum |= clSetKernelArg(k, 4, sizeof(cl_mem), (void *)&d_CellStart);
-        ciErrNum |= clSetKernelArg(k, 5, sizeof(cl_mem), (void *)&d_CellEnd);
-        ciErrNum |= clSetKernelArg(k, 6, sizeof(uint),   (void *)&numParticles);
+        ciErrNum  = clSetKernelArg(k, 1, sizeof(cl_mem), (void *)&d_Forces);
+        ciErrNum |= clSetKernelArg(k, 2, sizeof(cl_mem), (void *)&d_ReorderedPos);
+        ciErrNum |= clSetKernelArg(k, 3, sizeof(cl_mem), (void *)&d_ReorderedVel);
+        ciErrNum |= clSetKernelArg(k, 4, sizeof(cl_mem), (void *)&d_ReorderedForce);
+        ciErrNum |= clSetKernelArg(k, 5, sizeof(cl_mem), (void *)&d_Index);
+        ciErrNum |= clSetKernelArg(k, 6, sizeof(cl_mem), (void *)&d_CellStart);
+        ciErrNum |= clSetKernelArg(k, 7, sizeof(cl_mem), (void *)&d_CellEnd);
+        ciErrNum |= clSetKernelArg(k, 8, sizeof(uint),   (void *)&numParticles);
         oclCheckError(ciErrNum, CL_SUCCESS);
 
         ciErrNum = clEnqueueNDRangeKernel(cqCommandQueue, k, 1, NULL, &globalWorkSize, &wgSize, 0, NULL, NULL);

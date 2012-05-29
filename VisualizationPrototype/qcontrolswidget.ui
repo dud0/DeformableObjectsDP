@@ -6,7 +6,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>500</width>
+    <width>488</width>
     <height>446</height>
    </rect>
   </property>
@@ -108,8 +108,8 @@
   <widget class="QPushButton" name="applyPushButton">
    <property name="geometry">
     <rect>
-     <x>200</x>
-     <y>390</y>
+     <x>210</x>
+     <y>330</y>
      <width>97</width>
      <height>27</height>
     </rect>
@@ -167,8 +167,8 @@
   <widget class="QGroupBox" name="modeSelectGroup">
    <property name="geometry">
     <rect>
-     <x>300</x>
-     <y>50</y>
+     <x>310</x>
+     <y>20</y>
      <width>151</width>
      <height>131</height>
     </rect>
@@ -220,7 +220,7 @@
    <property name="geometry">
     <rect>
      <x>300</x>
-     <y>200</y>
+     <y>150</y>
      <width>131</width>
      <height>131</height>
     </rect>
@@ -297,6 +297,32 @@
      <string>B</string>
     </property>
    </widget>
+  </widget>
+  <widget class="QPushButton" name="btnRestart">
+   <property name="geometry">
+    <rect>
+     <x>390</x>
+     <y>380</y>
+     <width>97</width>
+     <height>27</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>Restart</string>
+   </property>
+  </widget>
+  <widget class="QPushButton" name="btnPause">
+   <property name="geometry">
+    <rect>
+     <x>390</x>
+     <y>410</y>
+     <width>97</width>
+     <height>27</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>Pause</string>
+   </property>
   </widget>
  </widget>
  <layoutdefault spacing="6" margin="11"/>

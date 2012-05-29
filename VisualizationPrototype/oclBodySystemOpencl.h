@@ -107,6 +107,7 @@ class BodySystemOpenCL : public BodySystem
         cl_mem m_dCellEnd[2];
         cl_mem m_dReorderedPos[2];
         cl_mem m_dReorderedVel[2];
+        cl_mem m_dReorderedForce[2];
 
         bool m_bUsePBO;
 

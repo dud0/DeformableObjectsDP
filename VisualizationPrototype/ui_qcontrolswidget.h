@@ -1,8 +1,8 @@
 /********************************************************************************
 ** Form generated from reading UI file 'qcontrolswidget.ui'
 **
-** Created: Mon Apr 30 15:16:51 2012
-**      by: Qt User Interface Compiler version 4.8.1
+** Created: Mon May 28 23:18:21 2012
+**      by: Qt User Interface Compiler version 4.7.2
 **
 ** WARNING! All changes made in this file will be lost when recompiling UI file!
 ********************************************************************************/
@@ -52,12 +52,14 @@ public:
     QLabel *rLabel;
     QLabel *gLabel;
     QLabel *bLabel;
+    QPushButton *btnRestart;
+    QPushButton *btnPause;
 
     void setupUi(QWidget *QControlsWidgetClass)
     {
         if (QControlsWidgetClass->objectName().isEmpty())
             QControlsWidgetClass->setObjectName(QString::fromUtf8("QControlsWidgetClass"));
-        QControlsWidgetClass->resize(500, 446);
+        QControlsWidgetClass->resize(488, 446);
         comboBox = new QComboBox(QControlsWidgetClass);
         comboBox->setObjectName(QString::fromUtf8("comboBox"));
         comboBox->setGeometry(QRect(100, 30, 85, 27));
@@ -84,7 +86,7 @@ public:
         objectLabel->setGeometry(QRect(30, 30, 67, 17));
         applyPushButton = new QPushButton(QControlsWidgetClass);
         applyPushButton->setObjectName(QString::fromUtf8("applyPushButton"));
-        applyPushButton->setGeometry(QRect(200, 390, 97, 27));
+        applyPushButton->setGeometry(QRect(210, 330, 97, 27));
         yLineEdit = new QLineEdit(QControlsWidgetClass);
         yLineEdit->setObjectName(QString::fromUtf8("yLineEdit"));
         yLineEdit->setGeometry(QRect(130, 210, 113, 27));
@@ -99,7 +101,7 @@ public:
         zLabel->setGeometry(QRect(40, 260, 67, 17));
         modeSelectGroup = new QGroupBox(QControlsWidgetClass);
         modeSelectGroup->setObjectName(QString::fromUtf8("modeSelectGroup"));
-        modeSelectGroup->setGeometry(QRect(300, 50, 151, 131));
+        modeSelectGroup->setGeometry(QRect(310, 20, 151, 131));
         normalModeRadioButton = new QRadioButton(modeSelectGroup);
         normalModeRadioButton->setObjectName(QString::fromUtf8("normalModeRadioButton"));
         normalModeRadioButton->setGeometry(QRect(10, 30, 114, 22));
@@ -111,7 +113,7 @@ public:
         edgeModeRadioButton->setGeometry(QRect(10, 90, 114, 22));
         colorGroupBox = new QGroupBox(QControlsWidgetClass);
         colorGroupBox->setObjectName(QString::fromUtf8("colorGroupBox"));
-        colorGroupBox->setGeometry(QRect(300, 200, 131, 131));
+        colorGroupBox->setGeometry(QRect(300, 150, 131, 131));
         rLineEdit = new QLineEdit(colorGroupBox);
         rLineEdit->setObjectName(QString::fromUtf8("rLineEdit"));
         rLineEdit->setGeometry(QRect(52, 20, 71, 27));
@@ -130,6 +132,12 @@ public:
         bLabel = new QLabel(colorGroupBox);
         bLabel->setObjectName(QString::fromUtf8("bLabel"));
         bLabel->setGeometry(QRect(10, 100, 67, 17));
+        btnRestart = new QPushButton(QControlsWidgetClass);
+        btnRestart->setObjectName(QString::fromUtf8("btnRestart"));
+        btnRestart->setGeometry(QRect(390, 380, 97, 27));
+        btnPause = new QPushButton(QControlsWidgetClass);
+        btnPause->setObjectName(QString::fromUtf8("btnPause"));
+        btnPause->setGeometry(QRect(390, 410, 97, 27));
 
         retranslateUi(QControlsWidgetClass);
 
@@ -154,6 +162,8 @@ public:
         rLabel->setText(QApplication::translate("QControlsWidgetClass", "R", 0, QApplication::UnicodeUTF8));
         gLabel->setText(QApplication::translate("QControlsWidgetClass", "G", 0, QApplication::UnicodeUTF8));
         bLabel->setText(QApplication::translate("QControlsWidgetClass", "B", 0, QApplication::UnicodeUTF8));
+        btnRestart->setText(QApplication::translate("QControlsWidgetClass", "Restart", 0, QApplication::UnicodeUTF8));
+        btnPause->setText(QApplication::translate("QControlsWidgetClass", "Pause", 0, QApplication::UnicodeUTF8));
     } // retranslateUi
 
 };

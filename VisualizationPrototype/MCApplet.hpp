@@ -887,9 +887,11 @@ public:
 			objects->at(i)->setMCIsoValue(configData->objectData[i].isoValue);
 			objects->at(i)->setObjectColor(configData->objectData[i].colorR, configData->objectData[i].colorG, configData->objectData[i].colorB,configData->objectData[i].colorA);
 			if (configData->objectData[i].change == true) {
-				uiSetForces(1, configData->objectData[i].force[0], i+1);
-				uiSetForces(2, configData->objectData[i].force[1], i+1);
-				uiSetForces(3, configData->objectData[i].force[2], i+1);
+				if (start) {
+					uiSetForces(1, configData->objectData[i].force[0], i+1);
+					uiSetForces(2, configData->objectData[i].force[1], i+1);
+					uiSetForces(3, configData->objectData[i].force[2], i+1);
+				}
 				start = true;
 				configData->objectData[i].change = false;
 			}
@@ -916,9 +918,30 @@ public:
 		//bordersActor->actorEventCallbacks()->push_back( new vl::DepthSortCallback );
 		//run kernels to update particle positions
 		if(start) {
-			nbody->update(m_timestep);
+			if(configData->doPause == false) {
+				nbody->update(m_timestep);
+			}
 		}
 		printf("%f\n",fps());
+
+		if(configData->doRestart == true) {
+
+		    shrLog("1\n");
+		    nbody->setArray(BodySystem::BODYSYSTEM_OLD_POSITION, hPos);
+		    shrLog("2\n");
+		    nbody->setArray(BodySystem::BODYSYSTEM_POSITION, hPos);
+		    shrLog("3\n");
+		    nbody->setArray(BodySystem::BODYSYSTEM_VELOCITY, hVel);
+		    shrLog("4\n");
+		    nbody->setArray(BodySystem::BODYSYSTEM_F, hF);
+		    shrLog("5\n");
+		    nbody->setArray(BodySystem::BODYSYSTEM_FORCES, hForces);
+		    shrLog("6\n");
+		    nbody->setArray(BodySystem::BODYSYSTEM_EDGE, hEdge);
+		    shrLog("7\n");
+
+			configData->doRestart = false;
+		}
 	}
 
 	void TranslatePositions(int count, float* pos, int pAct, int numObjects) {
@@ -979,6 +1002,11 @@ public:
 			/*
 			 * PRE POTREBY NARAZU DO STENY
 			 */
+			if (numObjects == 2) {
+				pos[i*4+1] += 1.0;
+				pos[i*4+2] += 2.0;
+			}
+
 			if (numObjects == 3) {
 				pos[i*4] += 8.0;
 				pos[i*4+1] -= 5.0;
@@ -1056,6 +1084,16 @@ public:
 				/*if(numObjects == 2) {
 					if (y > 100)
 						force[p] = 20;
+				}*/
+
+				/*
+				 * PRE POTREBY NATAHOVANIE DIABOLA Z OBOCH STRAN
+				 */
+				/*if (numObjects == 2) {
+				if (y > 30)
+						force[p] = 50;
+					if (y < 0)
+						force[p] = -50;
 				}*/
 				forces[p] = 0;
 				pos[p++] = y;
@@ -1799,11 +1837,11 @@ protected:
 		nEdges =0;
 		edgeLength = 0;
 
-		m_timestep=0.01f;
+		m_timestep=0.001f;
 		m_clusterScale=1.54f;
 		m_velocityScale=1.0f;
 		m_softening=0.1f;
-		m_damping=0.95f;
+		m_damping=1.0f;
 		m_pointSize=5.0f;
 		m_x=0;
 		m_y=-2;

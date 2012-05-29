@@ -191,6 +191,9 @@ void BodySystemOpenCL::_initialize(int numBodies, int numEdges)
     AllocateNBodyArrays(cxContext, m_dReorderedPos, m_numBodies, m_bDouble);
     shrLog("\nAllocateArray m_dReorderedPos\n");
 
+    AllocateNBodyArrays(cxContext, m_dReorderedForce, m_numBodies, m_bDouble);
+    shrLog("\nAllocateArray m_dReorderedForce\n");
+
     AllocateNBodyArrays(cxContext, m_dReorderedVel, m_numBodies, m_bDouble);
     shrLog("\nAllocateArray m_dReorderedVel\n");
 
@@ -230,6 +233,7 @@ void BodySystemOpenCL::_finalize()
     DeleteNBodyArrays(m_dIndex);
     DeleteNBodyArrays(m_dReorderedPos);
     DeleteNBodyArrays(m_dReorderedVel);
+    DeleteNBodyArrays(m_dReorderedForce);
 
     if (m_bUsePBO)
     {
@@ -322,10 +326,12 @@ void BodySystemOpenCL::update(float deltaTime)
     			m_dCellEnd[0],
     			m_dReorderedPos[0],
     			m_dReorderedVel[0],
+    			m_dReorderedForce[0],
     			m_dHash[0],
     			m_dIndex[0],
     			m_dPos[m_currentWrite],
     			m_dVel[m_currentWrite],
+    			m_dForces[m_currentWrite],
     			m_numBodies,
     			64*64*64
     	);
@@ -333,8 +339,10 @@ void BodySystemOpenCL::update(float deltaTime)
     	collide(cqCommandQueue,
     			collide_kernel,
     	        m_dVel[m_currentWrite],
+    	        m_dForces[m_currentWrite],
     	        m_dReorderedPos[0],
     	        m_dReorderedVel[0],
+    	        m_dReorderedForce[0],
     	        m_dIndex[0],
     	        m_dCellStart[0],
     	        m_dCellEnd[0],
